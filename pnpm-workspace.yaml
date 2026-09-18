@@ -1,0 +1,14 @@
+packages:
+  - apps/*
+  - packages/*
+
+catalog:
+  '@types/node': 24.13.5
+  eslint: 9.39.5
+  eslint-config-prettier: 10.1.8
+  typescript: 5.9.3
+
+onlyBuiltDependencies:
+  - '@tailwindcss/oxide'
+  - sharp
+  - unrs-resolver
