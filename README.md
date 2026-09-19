@@ -3,7 +3,8 @@
 Base de una aplicación para registrar entrenamientos y medir el progreso.
 GYM-001 inicializa exclusivamente la arquitectura del monorepo: una página
 inicial y un endpoint de salud, sin funcionalidades de gimnasio. GYM-002 añade
-PostgreSQL local y Prisma ORM 7 al backend, todavía sin modelos de dominio.
+PostgreSQL local y Prisma ORM 7 al backend. GYM-003 incorpora el primer modelo,
+User, sin autenticación ni endpoints de usuarios.
 
 ## Arquitectura
 
@@ -83,8 +84,9 @@ con prefijo `NEXT_PUBLIC_` son públicas y nunca deben contener secretos.
    Contiene únicamente las credenciales de desarrollo local de este Compose.
    No sobrescribas un `.env` existente; estos archivos permanecen ignorados por Git.
 4. Genera el cliente con `pnpm db:generate`.
-5. En una base recién creada, ejecuta `pnpm db:deploy` para inicializar el registro
-   de Prisma Migrate; comprueba después `pnpm db:status`.
+5. Ejecuta `pnpm db:deploy` para aplicar las migraciones versionadas, incluida
+   `create_users`; comprueba después `pnpm db:status`. Repite este paso al recibir
+   nuevas migraciones del repositorio.
 6. Ejecuta `pnpm dev` para arrancar frontend y backend fuera de Docker.
 7. Detén PostgreSQL con `pnpm db:down`. El volumen persistente se conserva.
 
@@ -113,16 +115,10 @@ en `apps/api/prisma.config.ts`, siguiendo Prisma 7. El cliente se genera en
 `apps/api/src/generated/prisma` y no se versiona. Turborepo lo genera antes de
 las tareas de la API; lint, typecheck, tests y build no necesitan PostgreSQL.
 
-GYM-002 no introduce modelos ni una migración vacía. La primera migración real
-se creará en GYM-003 al añadir el primer modelo. Las migraciones irán en
-`apps/api/prisma/migrations` y se versionarán: nunca modificar una ya aplicada
+La primera migración real, `create_users`, pertenece a GYM-003. Las migraciones
+están en `apps/api/prisma/migrations` y se versionan: nunca modificar una ya aplicada
 ni sustituirlas por `db push`. Después de cambiar el schema o aplicar migraciones,
 ejecuta `pnpm db:generate` y reinicia la API.
-
-Sin modelos, `db:migrate` no genera una migración. La inicialización con
-`db:deploy` crea únicamente la tabla interna `_prisma_migrations`, sin tablas de
-dominio ni archivos de migración. Antes de esa inicialización, `db:status` puede
-indicar que la base aún no está gestionada por Prisma Migrate y terminar con error.
 
 `GET /health` conserva su respuesta estática: no hace consultas a PostgreSQL
 ni informa del estado de la base de datos.
@@ -160,7 +156,8 @@ pnpm build
 - `test`: ejecuta las pruebas HTTP de la API con el runner nativo de Node.js.
   Comprueba `/health` y que la raíz de la API no exponga un endpoint adicional.
   Los tests HTTP sustituyen el proveedor Prisma, sin necesitar una base de datos;
-  también se comprueba el rechazo de URLs de conexión inválidas.
+  también se comprueba el rechazo de URLs de conexión inválidas y el dominio User
+  mediante tests unitarios independientes de PostgreSQL.
   El frontend estático y los paquetes sin lógica aún no tienen suites propias.
 - `build`: compila los paquetes compartidos, el backend en `apps/api/dist` y
   el frontend en `apps/web/.next`.
@@ -179,5 +176,5 @@ pnpm --filter @gym/web start
 
 Docker se utiliza únicamente para PostgreSQL 18 y Prisma ORM 7 pertenece al
 backend. No se han configurado Redis, autenticación, shadcn/ui, TanStack Query,
-Zustand ni servicios externos. Tampoco hay modelos de dominio, dashboard ni
-lógica de gimnasio. Estos elementos pertenecen a tickets posteriores.
+Zustand ni servicios externos. User es el único modelo de dominio; no hay
+dashboard ni lógica de gimnasio. Estos elementos pertenecen a tickets posteriores.

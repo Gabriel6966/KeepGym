@@ -31,13 +31,15 @@ generados.
 - Validar las entradas externas antes de utilizarlas.
 - Mantener los controladores NestJS pequeños.
 - La lógica de negocio debe vivir en services.
-- El acceso a datos se abstraerá posteriormente en repositories; no anticipar
-  esa infraestructura en GYM-001.
+- Los services utilizan repositories para la persistencia de dominio.
+  Los controladores no acceden directamente a Prisma.
 
 ## Seguridad
 
 - Nunca introducir secretos en el repositorio.
 - Nunca loggear passwords, tokens o credenciales.
+- `passwordHash` es interno: nunca incluir su valor en representaciones públicas,
+  logs ni errores.
 - Documentar variables de entorno en `.env.example` sin valores secretos.
 
 ## Comprobaciones obligatorias
