@@ -12,6 +12,14 @@ El monorepo utiliza pnpm workspaces y Turborepo. Hay un único `pnpm-lock.yaml`
 en la raíz y un único repositorio Git. No versionar `node_modules` ni artefactos
 generados.
 
+## Base de datos
+
+- PostgreSQL es la base de datos; Prisma ORM 7 es el ORM.
+- Prisma pertenece a `apps/api`, incluido su schema, cliente y migraciones.
+- Versionar las migraciones en Git. Nunca modificar una migración ya aplicada;
+  crear una nueva.
+- Nunca usar `db push` como sustituto de las migraciones normales.
+
 ## Implementación
 
 - Utilizar TypeScript con `strict: true` en todas las aplicaciones y paquetes.

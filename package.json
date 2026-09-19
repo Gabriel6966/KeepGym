@@ -14,7 +14,15 @@
     "typecheck": "turbo run typecheck",
     "test": "turbo run test",
     "format": "prettier --write .",
-    "format:check": "prettier --check ."
+    "format:check": "prettier --check .",
+    "db:up": "docker compose up -d --wait postgres",
+    "db:down": "docker compose down",
+    "db:logs": "docker compose logs --follow postgres",
+    "db:generate": "pnpm --filter @gym/api db:generate",
+    "db:migrate": "pnpm --filter @gym/api db:migrate",
+    "db:deploy": "pnpm --filter @gym/api db:deploy",
+    "db:status": "pnpm --filter @gym/api db:status",
+    "db:studio": "pnpm --filter @gym/api db:studio"
   },
   "devDependencies": {
     "prettier": "3.9.8",
