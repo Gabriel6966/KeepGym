@@ -2,14 +2,20 @@ import 'reflect-metadata';
 import assert from 'node:assert/strict';
 import { after, before, test } from 'node:test';
 import type { INestApplication } from '@nestjs/common';
-import { NestFactory } from '@nestjs/core';
+import { Test } from '@nestjs/testing';
 import { AppModule } from '../src/app.module';
+import { PrismaService } from '../src/prisma/prisma.service';
 
 let app: INestApplication;
 let baseUrl: string;
 
 before(async () => {
-  app = await NestFactory.create(AppModule, { logger: false });
+  const module = await Test.createTestingModule({ imports: [AppModule] })
+    .overrideProvider(PrismaService)
+    .useValue({})
+    .compile();
+
+  app = module.createNestApplication({ logger: false });
   await app.listen(0, '127.0.0.1');
   baseUrl = await app.getUrl();
 });

@@ -1,6 +1,7 @@
 import base from '@gym/config/eslint';
 
 export default [
+  { ignores: ['src/generated/prisma/**'] },
   ...base,
   {
     files: ['**/*.ts'],

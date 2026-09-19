@@ -1,0 +1,25 @@
+{
+  "extends": ["//"],
+  "tasks": {
+    "db:generate": {
+      "inputs": ["prisma/schema.prisma", "prisma.config.ts", "package.json"],
+      "outputs": ["src/generated/prisma/**"]
+    },
+    "dev": {
+      "dependsOn": ["db:generate"],
+      "env": ["PORT", "DATABASE_URL"]
+    },
+    "build": {
+      "dependsOn": ["^build", "db:generate"]
+    },
+    "lint": {
+      "dependsOn": ["^lint", "db:generate"]
+    },
+    "typecheck": {
+      "dependsOn": ["^typecheck", "db:generate"]
+    },
+    "test": {
+      "dependsOn": ["^build", "db:generate"]
+    }
+  }
+}
