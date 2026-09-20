@@ -2,7 +2,11 @@ import { Injectable } from '@nestjs/common';
 import type { User } from '../generated/prisma/client';
 import { InvalidUserInputError } from './errors/invalid-user-input.error';
 import { UsersRepository } from './users.repository';
-import type { CreateUserInput, PublicUser } from './users.types';
+import type {
+  CreateUserInput,
+  PublicUser,
+  UserCredentials,
+} from './users.types';
 
 function normalizeEmail(email: string): string {
   const normalized = email.trim().toLowerCase();
@@ -52,5 +56,12 @@ export class UsersService {
   async findByEmail(email: string): Promise<PublicUser | null> {
     const user = await this.usersRepository.findByEmail(normalizeEmail(email));
     return user ? toPublicUser(user) : null;
+  }
+
+  async findCredentialsByEmail(email: string): Promise<UserCredentials | null> {
+    const user = await this.usersRepository.findByEmail(normalizeEmail(email));
+    return user
+      ? { ...toPublicUser(user), passwordHash: user.passwordHash }
+      : null;
   }
 }

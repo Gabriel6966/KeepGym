@@ -64,7 +64,7 @@ void test('create normalizes email and delegates once without a duplicate preche
   assert.equal(input.email, '  USER@Example.COM  ');
 });
 
-void test('all service results expose only the four public fields', async (context) => {
+void test('all public service results expose only the four public fields', async (context) => {
   const { service } = await setup(context);
   const results = await Promise.all([
     service.create({
@@ -143,6 +143,32 @@ void test('an empty hash is rejected without persisting a user', async (context)
     InvalidUserInputError,
   );
   assert.equal(repository.create.mock.callCount(), 0);
+});
+
+void test('explicit internal credential lookup normalizes email and preserves null without changing public lookups', async (context) => {
+  const { service, repository } = await setup(context);
+  const credentials = await service.findCredentialsByEmail(
+    '  USER@Example.COM  ',
+  );
+
+  assert.deepEqual(credentials, storedUser);
+  assert.equal(
+    await service.findCredentialsByEmail(' MISSING@Example.COM '),
+    null,
+  );
+  assert.deepEqual(
+    repository.findByEmail.mock.calls.map((call) => call.arguments),
+    [['user@example.com'], ['missing@example.com']],
+  );
+  await assert.rejects(
+    service.findCredentialsByEmail(' '),
+    InvalidUserInputError,
+  );
+  assert.equal(repository.findByEmail.mock.callCount(), 2);
+  assert.equal(
+    'passwordHash' in ((await service.findByEmail(storedUser.email)) ?? {}),
+    false,
+  );
 });
 
 void test('create propagates the specific duplicate email domain error', async (context) => {

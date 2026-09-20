@@ -7,7 +7,7 @@
     },
     "dev": {
       "dependsOn": ["db:generate"],
-      "env": ["PORT", "DATABASE_URL"]
+      "env": ["PORT", "DATABASE_URL", "JWT_ACCESS_SECRET", "JWT_ACCESS_TTL"]
     },
     "build": {
       "dependsOn": ["^build", "db:generate"]

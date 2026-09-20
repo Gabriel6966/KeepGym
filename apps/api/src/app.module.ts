@@ -1,10 +1,35 @@
-import { Module } from '@nestjs/common';
+import { Module, ValidationPipe } from '@nestjs/common';
+import { ConfigModule } from '@nestjs/config';
+import { APP_PIPE } from '@nestjs/core';
+import { AuthModule } from './auth/auth.module';
+import { environmentConfig } from './config/environment.config';
 import { HealthController } from './health.controller';
 import { PrismaModule } from './prisma/prisma.module';
 import { UsersModule } from './users/users.module';
 
 @Module({
-  imports: [PrismaModule, UsersModule],
+  imports: [
+    ConfigModule.forRoot({
+      isGlobal: true,
+      envFilePath: '.env',
+      load: [environmentConfig],
+    }),
+    PrismaModule,
+    UsersModule,
+    AuthModule,
+  ],
   controllers: [HealthController],
+  providers: [
+    {
+      provide: APP_PIPE,
+      useFactory: () =>
+        new ValidationPipe({
+          whitelist: true,
+          forbidNonWhitelisted: true,
+          transform: true,
+          validationError: { target: false, value: false },
+        }),
+    },
+  ],
 })
 export class AppModule {}

@@ -33,11 +33,14 @@ generados.
 - La lógica de negocio debe vivir en services.
 - Los services utilizan repositories para la persistencia de dominio.
   Los controladores no acceden directamente a Prisma.
+- AuthService utiliza UsersService; no accede directamente a repositories ni Prisma.
 
 ## Seguridad
 
 - Nunca introducir secretos en el repositorio.
 - Nunca loggear passwords, tokens o credenciales.
+- Nunca almacenar passwords en claro: Auth los hashea con Argon2id.
+- Los secretos JWT provienen del entorno, nunca del código fuente.
 - `passwordHash` es interno: nunca incluir su valor en representaciones públicas,
   logs ni errores.
 - Documentar variables de entorno en `.env.example` sin valores secretos.
