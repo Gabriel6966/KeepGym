@@ -4,7 +4,8 @@ Base de una aplicación para registrar entrenamientos y medir el progreso.
 GYM-001 inicializa exclusivamente la arquitectura del monorepo: una página
 inicial y un endpoint de salud, sin funcionalidades de gimnasio. GYM-002 añade
 PostgreSQL local y Prisma ORM 7 al backend. GYM-003 incorpora el primer modelo,
-User, sin autenticación ni endpoints de usuarios.
+User. GYM-004 añade autenticación del backend mediante Argon2id y JWT de acceso,
+sin refresh tokens ni interfaz de autenticación en el frontend.
 
 ## Arquitectura
 
@@ -66,10 +67,13 @@ Las plantillas documentan las variables disponibles:
 | ----------------------- | --------------------- | ------------------------------------ |
 | `apps/api/.env.example` | `PORT`                | `3001`                               |
 | `apps/api/.env.example` | `DATABASE_URL`        | URL PostgreSQL local de la plantilla |
+| `apps/api/.env.example` | `JWT_ACCESS_SECRET`   | Obligatorio, sin valor por defecto   |
+| `apps/api/.env.example` | `JWT_ACCESS_TTL`      | `15m` (900 segundos)                 |
 | `apps/web/.env.example` | `NEXT_PUBLIC_API_URL` | `http://localhost:3001`              |
 
 Para personalizarlas, copia manualmente cada `.env.example` a `.env` en su
-misma carpeta. La API carga su `.env` con Node.js y valida el puerto; Next.js
+misma carpeta. La API carga su `.env` mediante Nest Config y valida el puerto
+y la configuración JWT al arrancar; Next.js
 carga sus variables de entorno de forma nativa. Las variables ya presentes
 en el proceso tienen prioridad. La página inicial todavía no consume la API;
 `NEXT_PUBLIC_API_URL` queda documentada para los próximos tickets. Las variables
@@ -81,7 +85,8 @@ con prefijo `NEXT_PUBLIC_` son públicas y nunca deben contener secretos.
 2. Inicia PostgreSQL con `pnpm db:up`. El comando espera al healthcheck;
    `docker compose ps` debe mostrar el servicio `postgres` como `healthy`.
 3. Si no existe `apps/api/.env`, copia `apps/api/.env.example` a ese archivo.
-   Contiene únicamente las credenciales de desarrollo local de este Compose.
+   La URL contiene únicamente las credenciales de desarrollo local de este Compose.
+   Configura también `JWT_ACCESS_SECRET` como se indica en la sección de Auth.
    No sobrescribas un `.env` existente; estos archivos permanecen ignorados por Git.
 4. Genera el cliente con `pnpm db:generate`.
 5. Ejecuta `pnpm db:deploy` para aplicar las migraciones versionadas, incluida
@@ -138,6 +143,28 @@ Ejecuta ambos servidores simultáneamente y recarga los cambios:
 
 Para detener ambos servidores, pulsa `Ctrl+C` en esa terminal.
 
+### Auth en desarrollo (GYM-004)
+
+Antes de arrancar la API, define `JWT_ACCESS_SECRET` en `apps/api/.env` o en el
+entorno del proceso. Utiliza un valor aleatorio criptográficamente seguro,
+por ejemplo 32 bytes aleatorios codificados en hexadecimal (64 caracteres),
+generado con un gestor de secretos. La API exige al menos 32 bytes y rechaza
+valores vacíos; no existe un secreto de respaldo. Nunca lo añadas a Git ni a logs.
+
+`JWT_ACCESS_TTL=15m` establece la duración del access token. También admite
+segundos positivos sin sufijo o las unidades `s`, `m`, `h` y `d`.
+
+- `POST /auth/register`: acepta `email` y `password`; devuelve HTTP 201 con
+  `accessToken`, `tokenType: "Bearer"`, `expiresIn` en segundos y `user` público.
+- `POST /auth/login`: acepta los mismos campos y devuelve HTTP 200 con la misma
+  estructura. Credenciales incorrectas devuelven HTTP 401 con `Invalid credentials`.
+- `GET /auth/me`: requiere `Authorization: Bearer <accessToken>` y devuelve
+  únicamente `id`, `email`, `createdAt` y `updatedAt` del usuario actual.
+
+Ambos DTOs exigen passwords de 15 a 128 caracteres, admiten espacios y Unicode
+y no recortan el password. Los campos extra se rechazan con HTTP 400; un email
+duplicado en registro devuelve HTTP 409. No hay refresh tokens, cookies ni logout.
+
 ## Calidad y build
 
 Ejecuta desde la raíz antes de cerrar cualquier ticket:
@@ -158,6 +185,9 @@ pnpm build
   Los tests HTTP sustituyen el proveedor Prisma, sin necesitar una base de datos;
   también se comprueba el rechazo de URLs de conexión inválidas y el dominio User
   mediante tests unitarios independientes de PostgreSQL.
+  También cubre Auth, Argon2id, JWT, DTOs y endpoints HTTP con persistencia en
+  memoria y secretos aleatorios exclusivos de cada prueba; no necesita un JWT
+  secret de desarrollo ni Docker.
   El frontend estático y los paquetes sin lógica aún no tienen suites propias.
 - `build`: compila los paquetes compartidos, el backend en `apps/api/dist` y
   el frontend en `apps/web/.next`.
@@ -175,6 +205,7 @@ pnpm --filter @gym/web start
 ## Alcance actual
 
 Docker se utiliza únicamente para PostgreSQL 18 y Prisma ORM 7 pertenece al
-backend. No se han configurado Redis, autenticación, shadcn/ui, TanStack Query,
+backend. La autenticación dispone únicamente de registro, login y consulta del
+usuario autenticado con access JWT. No se han configurado Redis, shadcn/ui, TanStack Query,
 Zustand ni servicios externos. User es el único modelo de dominio; no hay
 dashboard ni lógica de gimnasio. Estos elementos pertenecen a tickets posteriores.
