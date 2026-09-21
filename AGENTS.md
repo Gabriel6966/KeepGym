@@ -19,6 +19,10 @@ generados.
 - Versionar las migraciones en Git. Nunca modificar una migración ya aplicada;
   crear una nueva.
 - Nunca usar `db push` como sustituto de las migraciones normales.
+- El catálogo global Exercise se gestiona mediante seed versionado, no desde
+  endpoints de usuario. Los slugs son estables y las referencias usan su UUID.
+- Retirar ejercicios mediante `isActive`; no borrar físicamente ejercicios que
+  puedan estar referenciados por históricos.
 
 ## Implementación
 

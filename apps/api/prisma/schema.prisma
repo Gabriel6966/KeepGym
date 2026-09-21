@@ -74,3 +74,70 @@ model Profile {
 
   @@map("profiles")
 }
+
+enum MuscleGroup {
+  CHEST
+  BACK
+  SHOULDERS
+  BICEPS
+  TRICEPS
+  FOREARMS
+  QUADRICEPS
+  HAMSTRINGS
+  GLUTES
+  CALVES
+  CORE
+
+  @@map("muscle_group")
+}
+
+enum Equipment {
+  BARBELL
+  DUMBBELL
+  MACHINE
+  CABLE
+  BODYWEIGHT
+  KETTLEBELL
+  SMITH_MACHINE
+  EZ_BAR
+  RESISTANCE_BAND
+  OTHER
+
+  @@map("equipment")
+}
+
+enum MovementPattern {
+  HORIZONTAL_PUSH
+  VERTICAL_PUSH
+  HORIZONTAL_PULL
+  VERTICAL_PULL
+  SQUAT
+  HINGE
+  LUNGE
+  ISOLATION
+  CARRY
+  OTHER
+
+  @@map("movement_pattern")
+}
+
+model Exercise {
+  id               String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name             String          @db.VarChar(120)
+  slug             String          @unique(map: "exercises_slug_key") @db.VarChar(140)
+  description      String?         @db.Text
+  instructions     String[]        @default([])
+  primaryMuscle    MuscleGroup     @map("primary_muscle")
+  secondaryMuscles MuscleGroup[]   @default([]) @map("secondary_muscles")
+  equipment        Equipment
+  movementPattern  MovementPattern @map("movement_pattern")
+  isActive         Boolean         @default(true) @map("is_active")
+  createdAt        DateTime        @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt        DateTime        @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  @@index([isActive, name, id], map: "exercises_active_name_id_idx")
+  @@index([primaryMuscle, isActive], map: "exercises_muscle_active_idx")
+  @@index([equipment, isActive], map: "exercises_equipment_active_idx")
+  @@index([movementPattern, isActive], map: "exercises_movement_active_idx")
+  @@map("exercises")
+}

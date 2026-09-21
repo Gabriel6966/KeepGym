@@ -8,6 +8,7 @@ User. GYM-004 añade autenticación mediante Argon2id y JWT de acceso; GYM-005
 incorpora sesiones persistentes y refresh tokens rotatorios en cookies HttpOnly.
 No hay interfaz de autenticación en el frontend.
 GYM-006 añade el perfil privado del usuario autenticado, sin medidas corporales.
+GYM-007 incorpora un catálogo global de ejercicios de solo lectura.
 
 ## Arquitectura
 
@@ -226,6 +227,43 @@ Aplica `pnpm db:deploy` y `pnpm db:generate` al incorporar esta migración. No h
 variables de entorno ni dependencias nuevas. El peso y las medidas corporales
 se reservarán para BodyMeasurement; no forman parte de Profile.
 
+### Catálogo de ejercicios (GYM-007)
+
+Tras `pnpm db:deploy` y `pnpm db:generate`, ejecuta desde la raíz:
+
+```sh
+pnpm db:seed
+```
+
+El seed versionado en `apps/api/prisma/` contiene 24 ejercicios. Usa upsert por
+slug: crea los ausentes y actualiza los metadatos canónicos, conservando UUID y
+createdAt. Repetirlo no duplica ni borra ejercicios ajenos al seed. Los slugs
+deben mantenerse estables; las futuras referencias usarán `Exercise.id`. El seed
+se compila con el TypeScript existente y no requiere arrancar la API ni nuevas
+variables o dependencias. No se ejecuta automáticamente al migrar.
+
+Ambas rutas requieren `Authorization: Bearer <accessToken>` y muestran únicamente
+ejercicios activos; no aceptan userId ni permiten crear, editar o borrar ejercicios:
+
+- `GET /exercises`: admite `q`, `primaryMuscle`, `equipment`, `movementPattern`,
+  `page` y `limit`. Los filtros son combinables y los enums usan los valores en
+  mayúsculas del schema. `q` se recorta por fuera (1–100 caracteres si se envía)
+  y busca texto literal sin distinguir mayúsculas en nombre y slug.
+- `GET /exercises/:id`: devuelve un ejercicio activo por UUID; inexistente o
+  inactivo devuelve 404, UUID mal formado devuelve 400. No admite query params.
+
+El listado devuelve `{ items, page, limit, total, totalPages }`, ordenado por
+`name asc, id asc`. Por defecto usa `page=1` y `limit=20` (máximo 100). La
+paginación acepta enteros decimales positivos, no exponentes, fracciones, signos
+ni parámetros repetidos. Los offsets fuera del rango soportado se rechazan con 400. Las páginas sin resultados devuelven `items: []`; un filtro sin coincidencias
+devuelve `totalPages: 0`. Propiedades query desconocidas también devuelven 400.
+
+Ejemplo: `/exercises?primaryMuscle=CHEST&equipment=DUMBBELL&page=1&limit=10`.
+La respuesta pública no incluye isActive ni timestamps internos. Los índices
+cubren el listado activo ordenado y los tres filtros; no hay búsqueda full-text
+ni índice booleano aislado. Los tests normales usan persistencia en memoria y
+validan también la integridad e idempotencia del seed, sin borrar el catálogo.
+
 ## Calidad y build
 
 Ejecuta desde la raíz antes de cerrar cualquier ticket:
@@ -268,5 +306,5 @@ pnpm --filter @gym/web start
 Docker se utiliza únicamente para PostgreSQL 18 y Prisma ORM 7 pertenece al
 backend. La autenticación dispone de registro, login, consulta del usuario,
 refresh y cierre de sesiones. No se han configurado Redis, shadcn/ui, TanStack Query,
-Zustand ni servicios externos. Los modelos son User, Session y Profile; no hay
-dashboard ni lógica de gimnasio. Estos elementos pertenecen a tickets posteriores.
+Zustand ni servicios externos. Los modelos son User, Session, Profile y Exercise.
+No hay dashboard, rutinas ni seguimiento de entrenamientos; pertenecen a tickets posteriores.
