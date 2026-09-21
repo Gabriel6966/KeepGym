@@ -34,6 +34,10 @@ generados.
 - Los services utilizan repositories para la persistencia de dominio.
   Los controladores no acceden directamente a Prisma.
 - AuthService utiliza UsersService y SessionsService; no accede directamente a repositories ni Prisma.
+- Los recursos del usuario autenticado obtienen su identidad del principal,
+  nunca de un userId enviado por el cliente.
+- Profile contiene datos relativamente estables. El peso y otras medidas
+  corporales pertenecen a un futuro histórico BodyMeasurement, no a Profile.
 
 ## Seguridad
 

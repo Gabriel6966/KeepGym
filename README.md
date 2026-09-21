@@ -7,6 +7,7 @@ PostgreSQL local y Prisma ORM 7 al backend. GYM-003 incorpora el primer modelo,
 User. GYM-004 añade autenticación mediante Argon2id y JWT de acceso; GYM-005
 incorpora sesiones persistentes y refresh tokens rotatorios en cookies HttpOnly.
 No hay interfaz de autenticación en el frontend.
+GYM-006 añade el perfil privado del usuario autenticado, sin medidas corporales.
 
 ## Arquitectura
 
@@ -199,6 +200,32 @@ access tokens emitidos: pueden seguir siendo válidos hasta su expiración, como
 máximo 15 minutos. Las sesiones expiran de forma absoluta a los 30 días por
 defecto; la rotación no amplía esa fecha. No hay cleanup automático de sesiones.
 
+### Profile (GYM-006)
+
+Las tres rutas requieren `Authorization: Bearer <accessToken>` y operan únicamente
+sobre el usuario autenticado. No aceptan `userId`, parámetros de query ni rutas
+para consultar a otros usuarios. No cambian las cookies ni las sesiones de Auth.
+
+- `POST /profile`: crea el perfil (201); `displayName` es obligatorio y se recorta
+  por fuera, conservando mayúsculas y espacios interiores (1–80 caracteres).
+  Si ya existe, devuelve 409, sin sobrescribirlo.
+- `GET /profile`: devuelve el perfil (200), o 404 si no existe; nunca lo crea.
+- `PATCH /profile`: actualiza parcialmente (200), o 404 si no existe. Un body
+  vacío o propiedades desconocidas devuelven 400.
+
+Campos opcionales: `birthDate` (fecha real `YYYY-MM-DD`, no futura), `heightCm`
+(entero entre 50 y 300), `experienceLevel` (`BEGINNER`, `INTERMEDIATE`, `ADVANCED`)
+y `trainingGoal` (`GENERAL_FITNESS`, `MUSCLE_GAIN`, `STRENGTH`, `ENDURANCE`). Se
+devuelven como `null` cuando faltan; en PATCH, omitir conserva y `null` limpia.
+`unitSystem` admite `METRIC` (por defecto) o `IMPERIAL`, nunca `null`; `displayName`
+tampoco admite `null`. La altura siempre se persiste en centímetros, y birthDate
+se devuelve como fecha sin hora. La respuesta incluye `createdAt` y `updatedAt`,
+pero no userId, datos de autenticación ni relaciones internas.
+
+Aplica `pnpm db:deploy` y `pnpm db:generate` al incorporar esta migración. No hay
+variables de entorno ni dependencias nuevas. El peso y las medidas corporales
+se reservarán para BodyMeasurement; no forman parte de Profile.
+
 ## Calidad y build
 
 Ejecuta desde la raíz antes de cerrar cualquier ticket:
@@ -241,5 +268,5 @@ pnpm --filter @gym/web start
 Docker se utiliza únicamente para PostgreSQL 18 y Prisma ORM 7 pertenece al
 backend. La autenticación dispone de registro, login, consulta del usuario,
 refresh y cierre de sesiones. No se han configurado Redis, shadcn/ui, TanStack Query,
-Zustand ni servicios externos. Los modelos son User y Session; no hay
+Zustand ni servicios externos. Los modelos son User, Session y Profile; no hay
 dashboard ni lógica de gimnasio. Estos elementos pertenecen a tickets posteriores.

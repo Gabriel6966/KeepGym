@@ -5,6 +5,7 @@ import { AuthModule } from './auth/auth.module';
 import { environmentConfig } from './config/environment.config';
 import { HealthController } from './health.controller';
 import { PrismaModule } from './prisma/prisma.module';
+import { ProfilesModule } from './profiles/profiles.module';
 import { UsersModule } from './users/users.module';
 
 @Module({
@@ -17,6 +18,7 @@ import { UsersModule } from './users/users.module';
     PrismaModule,
     UsersModule,
     AuthModule,
+    ProfilesModule,
   ],
   controllers: [HealthController],
   providers: [
