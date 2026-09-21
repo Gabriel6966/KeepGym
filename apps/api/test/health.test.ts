@@ -6,6 +6,7 @@ import { Test } from '@nestjs/testing';
 import { AppModule } from '../src/app.module';
 import { environmentConfig } from '../src/config/environment.config';
 import { PrismaService } from '../src/prisma/prisma.service';
+import { configureHttp } from '../src/http/configure-http';
 import { testEnvironment } from './support/test-environment';
 
 let app: INestApplication;
@@ -20,6 +21,7 @@ before(async () => {
     .compile();
 
   app = module.createNestApplication({ logger: false });
+  configureHttp(app);
   await app.listen(0, '127.0.0.1');
   baseUrl = await app.getUrl();
 });

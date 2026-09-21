@@ -5,14 +5,18 @@ import {
   type EnvironmentConfig,
 } from '../config/environment.config';
 import { UsersModule } from '../users/users.module';
+import { SessionsModule } from '../sessions/sessions.module';
 import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
 import { AccessTokenGuard } from './guards/access-token.guard';
 import { PasswordHasher } from './password-hasher.service';
+import { OriginGuard } from './guards/origin.guard';
+import { RefreshCookieService } from './refresh-cookie.service';
 
 @Module({
   imports: [
     UsersModule,
+    SessionsModule,
     JwtModule.registerAsync({
       inject: [environmentConfig.KEY],
       useFactory: (config: EnvironmentConfig): JwtModuleOptions => ({
@@ -26,6 +30,12 @@ import { PasswordHasher } from './password-hasher.service';
     }),
   ],
   controllers: [AuthController],
-  providers: [AuthService, PasswordHasher, AccessTokenGuard],
+  providers: [
+    AuthService,
+    PasswordHasher,
+    AccessTokenGuard,
+    OriginGuard,
+    RefreshCookieService,
+  ],
 })
 export class AuthModule {}

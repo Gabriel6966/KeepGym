@@ -4,8 +4,9 @@ Base de una aplicación para registrar entrenamientos y medir el progreso.
 GYM-001 inicializa exclusivamente la arquitectura del monorepo: una página
 inicial y un endpoint de salud, sin funcionalidades de gimnasio. GYM-002 añade
 PostgreSQL local y Prisma ORM 7 al backend. GYM-003 incorpora el primer modelo,
-User. GYM-004 añade autenticación del backend mediante Argon2id y JWT de acceso,
-sin refresh tokens ni interfaz de autenticación en el frontend.
+User. GYM-004 añade autenticación mediante Argon2id y JWT de acceso; GYM-005
+incorpora sesiones persistentes y refresh tokens rotatorios en cookies HttpOnly.
+No hay interfaz de autenticación en el frontend.
 
 ## Arquitectura
 
@@ -63,13 +64,17 @@ La API utiliza PostgreSQL local mediante Docker; prepara el entorno siguiendo
 la sección de base de datos que aparece a continuación.
 Las plantillas documentan las variables disponibles:
 
-| Archivo                 | Variable              | Valor por defecto                    |
-| ----------------------- | --------------------- | ------------------------------------ |
-| `apps/api/.env.example` | `PORT`                | `3001`                               |
-| `apps/api/.env.example` | `DATABASE_URL`        | URL PostgreSQL local de la plantilla |
-| `apps/api/.env.example` | `JWT_ACCESS_SECRET`   | Obligatorio, sin valor por defecto   |
-| `apps/api/.env.example` | `JWT_ACCESS_TTL`      | `15m` (900 segundos)                 |
-| `apps/web/.env.example` | `NEXT_PUBLIC_API_URL` | `http://localhost:3001`              |
+| Archivo                 | Variable                     | Valor por defecto                                           |
+| ----------------------- | ---------------------------- | ----------------------------------------------------------- |
+| `apps/api/.env.example` | `PORT`                       | `3001`                                                      |
+| `apps/api/.env.example` | `DATABASE_URL`               | URL PostgreSQL local de la plantilla                        |
+| `apps/api/.env.example` | `JWT_ACCESS_SECRET`          | Obligatorio, sin valor por defecto                          |
+| `apps/api/.env.example` | `JWT_ACCESS_TTL`             | `15m` (900 segundos)                                        |
+| `apps/api/.env.example` | `AUTH_REFRESH_TTL_DAYS`      | `30`, expiración absoluta (1–365 días)                      |
+| `apps/api/.env.example` | `AUTH_REFRESH_COOKIE_NAME`   | `gym_refresh_token`                                         |
+| `apps/api/.env.example` | `AUTH_REFRESH_COOKIE_SECURE` | `false` explícito en la plantilla local; `true` si se omite |
+| `apps/api/.env.example` | `FRONTEND_ORIGIN`            | Obligatorio: `http://localhost:3000` en local               |
+| `apps/web/.env.example` | `NEXT_PUBLIC_API_URL`        | `http://localhost:3001`                                     |
 
 Para personalizarlas, copia manualmente cada `.env.example` a `.env` en su
 misma carpeta. La API carga su `.env` mediante Nest Config y valida el puerto
@@ -86,11 +91,11 @@ con prefijo `NEXT_PUBLIC_` son públicas y nunca deben contener secretos.
    `docker compose ps` debe mostrar el servicio `postgres` como `healthy`.
 3. Si no existe `apps/api/.env`, copia `apps/api/.env.example` a ese archivo.
    La URL contiene únicamente las credenciales de desarrollo local de este Compose.
-   Configura también `JWT_ACCESS_SECRET` como se indica en la sección de Auth.
+   Configura también `JWT_ACCESS_SECRET` y las variables de Auth de la plantilla.
    No sobrescribas un `.env` existente; estos archivos permanecen ignorados por Git.
 4. Genera el cliente con `pnpm db:generate`.
-5. Ejecuta `pnpm db:deploy` para aplicar las migraciones versionadas, incluida
-   `create_users`; comprueba después `pnpm db:status`. Repite este paso al recibir
+5. Ejecuta `pnpm db:deploy` para aplicar las migraciones versionadas, incluidas
+   `create_users` y `create_sessions`; comprueba después `pnpm db:status`. Repite este paso al recibir
    nuevas migraciones del repositorio.
 6. Ejecuta `pnpm dev` para arrancar frontend y backend fuera de Docker.
 7. Detén PostgreSQL con `pnpm db:down`. El volumen persistente se conserva.
@@ -143,7 +148,7 @@ Ejecuta ambos servidores simultáneamente y recarga los cambios:
 
 Para detener ambos servidores, pulsa `Ctrl+C` en esa terminal.
 
-### Auth en desarrollo (GYM-004)
+### Auth en desarrollo (GYM-004 / GYM-005)
 
 Antes de arrancar la API, define `JWT_ACCESS_SECRET` en `apps/api/.env` o en el
 entorno del proceso. Utiliza un valor aleatorio criptográficamente seguro,
@@ -151,19 +156,48 @@ por ejemplo 32 bytes aleatorios codificados en hexadecimal (64 caracteres),
 generado con un gestor de secretos. La API exige al menos 32 bytes y rechaza
 valores vacíos; no existe un secreto de respaldo. Nunca lo añadas a Git ni a logs.
 
-`JWT_ACCESS_TTL=15m` establece la duración del access token. También admite
-segundos positivos sin sufijo o las unidades `s`, `m`, `h` y `d`.
+`JWT_ACCESS_TTL=15m` establece la duración del access token, con un máximo de
+900 segundos. Puedes acortarlo indicando segundos positivos o minutos (`s`, `m`).
 
 - `POST /auth/register`: acepta `email` y `password`; devuelve HTTP 201 con
   `accessToken`, `tokenType: "Bearer"`, `expiresIn` en segundos y `user` público.
+  Crea una sesión y establece la refresh cookie HttpOnly.
 - `POST /auth/login`: acepta los mismos campos y devuelve HTTP 200 con la misma
-  estructura. Credenciales incorrectas devuelven HTTP 401 con `Invalid credentials`.
+  estructura y una nueva sesión/cookie. Credenciales incorrectas devuelven HTTP 401 con `Invalid credentials`.
 - `GET /auth/me`: requiere `Authorization: Bearer <accessToken>` y devuelve
   únicamente `id`, `email`, `createdAt` y `updatedAt` del usuario actual.
 
 Ambos DTOs exigen passwords de 15 a 128 caracteres, admiten espacios y Unicode
 y no recortan el password. Los campos extra se rechazan con HTTP 400; un email
-duplicado en registro devuelve HTTP 409. No hay refresh tokens, cookies ni logout.
+duplicado en registro devuelve HTTP 409.
+
+Configura `FRONTEND_ORIGIN` con un origen HTTP(S) exacto, sin ruta ni slash final,
+y `AUTH_REFRESH_COOKIE_SECURE=false` explícitamente para desarrollo HTTP local.
+En producción (`NODE_ENV=production`) la API rechaza `Secure=false`. La cookie
+usa `HttpOnly`, `SameSite=Lax`, `Path=/auth`, sin Domain, y su Max-Age refleja
+el tiempo restante de la sesión, no un nuevo plazo de 30 días en cada rotación.
+
+- `POST /auth/refresh`: sin body obligatorio; utiliza exclusivamente la cookie,
+  rota el refresh token y devuelve HTTP 200 con el nuevo access token y PublicUser.
+  El refresh token nunca aparece en JSON. Tokens inválidos devuelven HTTP 401
+  genérico y limpian la cookie. Reutilizar un token anterior revoca toda esa sesión.
+- `POST /auth/logout`: revoca la sesión cuya cookie es válida y limpia la cookie;
+  devuelve HTTP 204 incluso si no había cookie. No elimina registros.
+- `POST /auth/logout-all`: requiere Bearer access token, revoca las sesiones
+  activas de ese usuario y limpia la cookie; devuelve HTTP 204.
+
+Todos estos POST, incluidos register/login, requieren `Origin` exactamente igual
+a `FRONTEND_ORIGIN`; si falta o difiere, se responde HTTP 403. Los clientes de
+terminal/pruebas también deben enviarlo. CORS permite ese origen con credentials,
+nunca `*`. En el navegador utiliza `credentials: 'include'` en los requests Auth
+para recibir/enviar la cookie. No almacenes refresh tokens en localStorage.
+Serializa los refresh: dos renovaciones concurrentes con la misma credencial
+activan la política estricta de replay y exigen volver a hacer login.
+
+Logout, logout-all y la revocación por replay no invalidan inmediatamente los
+access tokens emitidos: pueden seguir siendo válidos hasta su expiración, como
+máximo 15 minutos. Las sesiones expiran de forma absoluta a los 30 días por
+defecto; la rotación no amplía esa fecha. No hay cleanup automático de sesiones.
 
 ## Calidad y build
 
@@ -205,7 +239,7 @@ pnpm --filter @gym/web start
 ## Alcance actual
 
 Docker se utiliza únicamente para PostgreSQL 18 y Prisma ORM 7 pertenece al
-backend. La autenticación dispone únicamente de registro, login y consulta del
-usuario autenticado con access JWT. No se han configurado Redis, shadcn/ui, TanStack Query,
-Zustand ni servicios externos. User es el único modelo de dominio; no hay
+backend. La autenticación dispone de registro, login, consulta del usuario,
+refresh y cierre de sesiones. No se han configurado Redis, shadcn/ui, TanStack Query,
+Zustand ni servicios externos. Los modelos son User y Session; no hay
 dashboard ni lógica de gimnasio. Estos elementos pertenecen a tickets posteriores.

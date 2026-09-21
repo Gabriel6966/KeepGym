@@ -4,6 +4,10 @@ export interface EnvironmentConfig {
   port: number;
   jwtAccessSecret: string;
   jwtAccessTtlSeconds: number;
+  authRefreshTtlDays: number;
+  authRefreshCookieName: string;
+  authRefreshCookieSecure: boolean;
+  frontendOrigin: string;
 }
 
 export function validateEnvironment(
@@ -35,13 +39,75 @@ export function validateEnvironment(
   };
   const seconds = Number(match?.[1]) * (multiplier[match?.[2] ?? 's'] ?? NaN);
 
-  if (!match || !Number.isSafeInteger(seconds) || seconds < 1) {
+  if (
+    !match ||
+    !Number.isSafeInteger(seconds) ||
+    seconds < 1 ||
+    seconds > 900
+  ) {
     throw new Error(
-      'JWT_ACCESS_TTL must be positive seconds or a duration such as 15m.',
+      'JWT_ACCESS_TTL must be between 1 and 900 seconds (for example 15m).',
     );
   }
 
-  return { port, jwtAccessSecret: secret, jwtAccessTtlSeconds: seconds };
+  const refreshDays = environment.AUTH_REFRESH_TTL_DAYS ?? '30';
+  if (
+    typeof refreshDays !== 'string' ||
+    !/^[1-9]\d{0,2}$/.test(refreshDays) ||
+    Number(refreshDays) > 365
+  ) {
+    throw new Error(
+      'AUTH_REFRESH_TTL_DAYS must be an integer between 1 and 365.',
+    );
+  }
+
+  const cookieSecure = environment.AUTH_REFRESH_COOKIE_SECURE ?? 'true';
+  if (cookieSecure !== 'true' && cookieSecure !== 'false') {
+    throw new Error('AUTH_REFRESH_COOKIE_SECURE must be true or false.');
+  }
+  if (environment.NODE_ENV === 'production' && cookieSecure !== 'true') {
+    throw new Error('AUTH_REFRESH_COOKIE_SECURE must be true in production.');
+  }
+
+  const cookieName =
+    environment.AUTH_REFRESH_COOKIE_NAME ?? 'gym_refresh_token';
+  if (
+    typeof cookieName !== 'string' ||
+    !/^[A-Za-z0-9_-]{1,64}$/.test(cookieName) ||
+    cookieName.startsWith('__Host-') ||
+    (cookieName.startsWith('__Secure-') && cookieSecure !== 'true')
+  ) {
+    throw new Error(
+      'AUTH_REFRESH_COOKIE_NAME must be a valid name compatible with the cookie options.',
+    );
+  }
+
+  const origin = environment.FRONTEND_ORIGIN;
+  let frontendUrl: URL;
+  try {
+    if (typeof origin !== 'string') throw new Error();
+    frontendUrl = new URL(origin);
+  } catch {
+    throw new Error('FRONTEND_ORIGIN must be an exact HTTP(S) origin.');
+  }
+  if (
+    !['http:', 'https:'].includes(frontendUrl.protocol) ||
+    frontendUrl.origin !== origin
+  ) {
+    throw new Error(
+      'FRONTEND_ORIGIN must be an exact HTTP(S) origin without a path or credentials.',
+    );
+  }
+
+  return {
+    port,
+    jwtAccessSecret: secret,
+    jwtAccessTtlSeconds: seconds,
+    authRefreshTtlDays: Number(refreshDays),
+    authRefreshCookieName: cookieName,
+    authRefreshCookieSecure: cookieSecure === 'true',
+    frontendOrigin: origin,
+  };
 }
 
 export const environmentConfig = registerAs('environment', () =>
