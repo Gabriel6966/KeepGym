@@ -7,7 +7,17 @@
     },
     "dev": {
       "dependsOn": ["db:generate"],
-      "env": ["PORT", "DATABASE_URL", "JWT_ACCESS_SECRET", "JWT_ACCESS_TTL"]
+      "env": [
+        "PORT",
+        "DATABASE_URL",
+        "JWT_ACCESS_SECRET",
+        "JWT_ACCESS_TTL",
+        "AUTH_REFRESH_TTL_DAYS",
+        "AUTH_REFRESH_COOKIE_NAME",
+        "AUTH_REFRESH_COOKIE_SECURE",
+        "FRONTEND_ORIGIN",
+        "NODE_ENV"
+      ]
     },
     "build": {
       "dependsOn": ["^build", "db:generate"]

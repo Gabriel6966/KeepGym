@@ -33,7 +33,7 @@ generados.
 - La lógica de negocio debe vivir en services.
 - Los services utilizan repositories para la persistencia de dominio.
   Los controladores no acceden directamente a Prisma.
-- AuthService utiliza UsersService; no accede directamente a repositories ni Prisma.
+- AuthService utiliza UsersService y SessionsService; no accede directamente a repositories ni Prisma.
 
 ## Seguridad
 
@@ -44,6 +44,10 @@ generados.
 - `passwordHash` es interno: nunca incluir su valor en representaciones públicas,
   logs ni errores.
 - Documentar variables de entorno en `.env.example` sin valores secretos.
+- Los refresh tokens son opacos y se rotan; persistir únicamente el hash SHA-256
+  de su secret. Nunca incluir tokens, secrets ni hashes de sesión en JSON o logs.
+- Las cookies de autenticación son HttpOnly y requieren validación de Origin.
+  Nunca combinar CORS wildcard con credentials.
 
 ## Comprobaciones obligatorias
 
