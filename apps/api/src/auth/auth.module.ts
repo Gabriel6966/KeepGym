@@ -37,5 +37,6 @@ import { RefreshCookieService } from './refresh-cookie.service';
     OriginGuard,
     RefreshCookieService,
   ],
+  exports: [AccessTokenGuard, JwtModule],
 })
 export class AuthModule {}

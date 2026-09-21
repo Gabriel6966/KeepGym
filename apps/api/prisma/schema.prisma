@@ -15,6 +15,7 @@ model User {
   createdAt    DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt    DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
   sessions     Session[]
+  profile      Profile?
 
   @@map("users")
 }
@@ -33,4 +34,43 @@ model Session {
   @@index([userId], map: "sessions_user_id_idx")
   @@index([expiresAt], map: "sessions_expires_at_idx")
   @@map("sessions")
+}
+
+enum ExperienceLevel {
+  BEGINNER
+  INTERMEDIATE
+  ADVANCED
+
+  @@map("experience_level")
+}
+
+enum TrainingGoal {
+  GENERAL_FITNESS
+  MUSCLE_GAIN
+  STRENGTH
+  ENDURANCE
+
+  @@map("training_goal")
+}
+
+enum UnitSystem {
+  METRIC
+  IMPERIAL
+
+  @@map("unit_system")
+}
+
+model Profile {
+  userId          String           @id @map("user_id") @db.Uuid
+  user            User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  displayName     String           @map("display_name") @db.VarChar(80)
+  birthDate       DateTime?        @map("birth_date") @db.Date
+  heightCm        Int?             @map("height_cm")
+  experienceLevel ExperienceLevel? @map("experience_level")
+  trainingGoal    TrainingGoal?    @map("training_goal")
+  unitSystem      UnitSystem       @default(METRIC) @map("unit_system")
+  createdAt       DateTime         @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt       DateTime         @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  @@map("profiles")
 }
