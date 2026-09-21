@@ -8,6 +8,7 @@ import { HealthController } from './health.controller';
 import { PrismaModule } from './prisma/prisma.module';
 import { ProfilesModule } from './profiles/profiles.module';
 import { UsersModule } from './users/users.module';
+import { WorkoutTemplatesModule } from './workout-templates/workout-templates.module';
 
 @Module({
   imports: [
@@ -21,6 +22,7 @@ import { UsersModule } from './users/users.module';
     AuthModule,
     ProfilesModule,
     ExercisesModule,
+    WorkoutTemplatesModule,
   ],
   controllers: [HealthController],
   providers: [

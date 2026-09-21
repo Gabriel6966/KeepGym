@@ -9,6 +9,7 @@ incorpora sesiones persistentes y refresh tokens rotatorios en cookies HttpOnly.
 No hay interfaz de autenticación en el frontend.
 GYM-006 añade el perfil privado del usuario autenticado, sin medidas corporales.
 GYM-007 incorpora un catálogo global de ejercicios de solo lectura.
+GYM-008 añade plantillas privadas de entrenamiento planificado.
 
 ## Arquitectura
 
@@ -264,6 +265,49 @@ cubren el listado activo ordenado y los tres filtros; no hay búsqueda full-text
 ni índice booleano aislado. Los tests normales usan persistencia en memoria y
 validan también la integridad e idempotencia del seed, sin borrar el catálogo.
 
+### Plantillas de entrenamiento (GYM-008)
+
+Aplica `pnpm db:deploy` y `pnpm db:generate`; `pnpm db:seed` prepara el catálogo
+utilizado por las plantillas. No hay dependencias ni variables nuevas.
+Todas las rutas requieren Bearer access token y usan exclusivamente su principal:
+recursos inexistentes, ajenos o archivados devuelven el mismo 404.
+
+- `POST /workout-templates`: crea una plantilla vacía (201) con `name` recortado
+  (1–120 caracteres) y `description` opcional (máximo 1000).
+- `GET /workout-templates`: lista solo las propias y activas; admite `q`
+  (nombre literal, sin distinguir mayúsculas, 1–100 caracteres), `page=1` y
+  `limit=20` (máximo 100). Devuelve `{ items, page, limit, total, totalPages }`,
+  ordenado por `updatedAt desc, id asc`. Cada item tiene la misma estructura
+  que el detalle, con ejercicios resumidos y ordenados por `position`.
+- `GET /workout-templates/:id`: devuelve la plantilla con sus entradas.
+- `PATCH /workout-templates/:id`: modifica solo `name` y `description` (200).
+- `DELETE /workout-templates/:id`: archiva (204), sin borrado físico ni restore.
+- `POST /workout-templates/:id/exercises`: añade al final (201) un `exerciseId`
+  activo, `targetSets` (1–20), `targetRepsMin` y `targetRepsMax` (1–100,
+  mínimo ≤ máximo), `restSeconds` opcional (0–1800, default 90) y `notes`
+  opcional (máximo 500). Un ejercicio repetido devuelve 409.
+- `PATCH /workout-templates/:id/exercises/:templateExerciseId`: modifica solo
+  objetivos, descanso y notas (200); no cambia ejercicio ni posición.
+- `DELETE /workout-templates/:id/exercises/:templateExerciseId`: elimina la
+  entrada (204) y compacta las posiciones de forma atómica.
+- `PUT /workout-templates/:id/exercises/order`: recibe
+  `{ "templateExerciseIds": ["UUID-C", "UUID-A", "UUID-B"] }` con exactamente
+  todas las entradas actuales, sin duplicados; devuelve la plantilla (200).
+  Una lista inválida devuelve 400 sin cambios parciales.
+
+En PATCH, omitir `description`/`notes` conserva el valor y `null` lo limpia.
+Los PATCH vacíos, propiedades desconocidas y UUIDs inválidos devuelven 400.
+Solo el listado admite query params. No se acepta `userId` ni una posición
+arbitraria del cliente. Las respuestas no incluyen ownership ni estado de archivo;
+el resumen del ejercicio incluye `isAvailable`. Si el catálogo lo desactiva,
+la entrada existente permanece visible con `isAvailable: false`.
+
+Las escrituras y el orden usan transacciones serializables con hasta dos
+reintentos por conflictos transitorios; agotados estos, devuelven 409 para
+reintentar la petición. Cambiar entradas actualiza `updatedAt` de la plantilla.
+Estas plantillas no registran sesiones realizadas, pesos, repeticiones reales
+ni históricos. Auth, sus cookies y sesiones no cambian.
+
 ## Calidad y build
 
 Ejecuta desde la raíz antes de cerrar cualquier ticket:
@@ -306,5 +350,6 @@ pnpm --filter @gym/web start
 Docker se utiliza únicamente para PostgreSQL 18 y Prisma ORM 7 pertenece al
 backend. La autenticación dispone de registro, login, consulta del usuario,
 refresh y cierre de sesiones. No se han configurado Redis, shadcn/ui, TanStack Query,
-Zustand ni servicios externos. Los modelos son User, Session, Profile y Exercise.
-No hay dashboard, rutinas ni seguimiento de entrenamientos; pertenecen a tickets posteriores.
+Zustand ni servicios externos. Los modelos son User, Session, Profile, Exercise,
+WorkoutTemplate y WorkoutTemplateExercise. Hay plantillas planificadas privadas,
+pero no dashboard ni seguimiento de entrenamientos realizados.

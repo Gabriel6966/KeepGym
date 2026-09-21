@@ -42,6 +42,10 @@ generados.
   nunca de un userId enviado por el cliente.
 - Profile contiene datos relativamente estables. El peso y otras medidas
   corporales pertenecen a un futuro histórico BodyMeasurement, no a Profile.
+- WorkoutTemplate representa planificación, nunca rendimiento realizado. Se
+  archiva en lugar de borrarse físicamente mediante HTTP.
+- Las entradas de una plantilla mantienen posiciones contiguas desde 1;
+  añadir, eliminar y reordenar deben preservar el orden de forma atómica.
 
 ## Seguridad
 
