@@ -9,13 +9,14 @@ datasource db {
 }
 
 model User {
-  id           String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  email        String    @unique(map: "users_email_key") @db.VarChar(320)
-  passwordHash String    @map("password_hash") @db.Text
-  createdAt    DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
-  updatedAt    DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
-  sessions     Session[]
-  profile      Profile?
+  id               String            @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  email            String            @unique(map: "users_email_key") @db.VarChar(320)
+  passwordHash     String            @map("password_hash") @db.Text
+  createdAt        DateTime          @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt        DateTime          @updatedAt @map("updated_at") @db.Timestamptz(3)
+  sessions         Session[]
+  profile          Profile?
+  workoutTemplates WorkoutTemplate[]
 
   @@map("users")
 }
@@ -122,22 +123,59 @@ enum MovementPattern {
 }
 
 model Exercise {
-  id               String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  name             String          @db.VarChar(120)
-  slug             String          @unique(map: "exercises_slug_key") @db.VarChar(140)
-  description      String?         @db.Text
-  instructions     String[]        @default([])
-  primaryMuscle    MuscleGroup     @map("primary_muscle")
-  secondaryMuscles MuscleGroup[]   @default([]) @map("secondary_muscles")
-  equipment        Equipment
-  movementPattern  MovementPattern @map("movement_pattern")
-  isActive         Boolean         @default(true) @map("is_active")
-  createdAt        DateTime        @default(now()) @map("created_at") @db.Timestamptz(3)
-  updatedAt        DateTime        @updatedAt @map("updated_at") @db.Timestamptz(3)
+  id                String                    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name              String                    @db.VarChar(120)
+  slug              String                    @unique(map: "exercises_slug_key") @db.VarChar(140)
+  description       String?                   @db.Text
+  instructions      String[]                  @default([])
+  primaryMuscle     MuscleGroup               @map("primary_muscle")
+  secondaryMuscles  MuscleGroup[]             @default([]) @map("secondary_muscles")
+  equipment         Equipment
+  movementPattern   MovementPattern           @map("movement_pattern")
+  isActive          Boolean                   @default(true) @map("is_active")
+  createdAt         DateTime                  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt         DateTime                  @updatedAt @map("updated_at") @db.Timestamptz(3)
+  templateExercises WorkoutTemplateExercise[]
 
   @@index([isActive, name, id], map: "exercises_active_name_id_idx")
   @@index([primaryMuscle, isActive], map: "exercises_muscle_active_idx")
   @@index([equipment, isActive], map: "exercises_equipment_active_idx")
   @@index([movementPattern, isActive], map: "exercises_movement_active_idx")
   @@map("exercises")
+}
+
+model WorkoutTemplate {
+  id          String                    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId      String                    @map("user_id") @db.Uuid
+  user        User                      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name        String                    @db.VarChar(120)
+  description String?                   @db.Text
+  archivedAt  DateTime?                 @map("archived_at") @db.Timestamptz(3)
+  createdAt   DateTime                  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt   DateTime                  @updatedAt @map("updated_at") @db.Timestamptz(3)
+  exercises   WorkoutTemplateExercise[]
+
+  @@index([userId, archivedAt], map: "workout_templates_user_archived_idx")
+  @@map("workout_templates")
+}
+
+model WorkoutTemplateExercise {
+  id                String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  workoutTemplateId String          @map("workout_template_id") @db.Uuid
+  workoutTemplate   WorkoutTemplate @relation(fields: [workoutTemplateId], references: [id], onDelete: Cascade)
+  exerciseId        String          @map("exercise_id") @db.Uuid
+  exercise          Exercise        @relation(fields: [exerciseId], references: [id], onDelete: Restrict)
+  position          Int
+  targetSets        Int             @map("target_sets")
+  targetRepsMin     Int             @map("target_reps_min")
+  targetRepsMax     Int             @map("target_reps_max")
+  restSeconds       Int             @default(90) @map("rest_seconds")
+  notes             String?         @db.VarChar(500)
+  createdAt         DateTime        @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt         DateTime        @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  @@unique([workoutTemplateId, position], map: "template_exercises_position_key")
+  @@unique([workoutTemplateId, exerciseId], map: "template_exercises_exercise_key")
+  @@index([exerciseId], map: "template_exercises_exercise_idx")
+  @@map("workout_template_exercises")
 }
