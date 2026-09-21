@@ -22,6 +22,7 @@
     "db:migrate": "pnpm --filter @gym/api db:migrate",
     "db:deploy": "pnpm --filter @gym/api db:deploy",
     "db:status": "pnpm --filter @gym/api db:status",
+    "db:seed": "pnpm --filter @gym/api db:seed",
     "db:studio": "pnpm --filter @gym/api db:studio"
   },
   "devDependencies": {

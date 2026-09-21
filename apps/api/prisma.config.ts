@@ -9,6 +9,7 @@ export default defineConfig({
   schema: 'prisma/schema.prisma',
   migrations: {
     path: 'prisma/migrations',
+    seed: 'pnpm seed:run',
   },
   datasource: {
     // Generation works without a database; database commands require this URL.
