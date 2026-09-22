@@ -10,6 +10,8 @@ No hay interfaz de autenticación en el frontend.
 GYM-006 añade el perfil privado del usuario autenticado, sin medidas corporales.
 GYM-007 incorpora un catálogo global de ejercicios de solo lectura.
 GYM-008 añade plantillas privadas de entrenamiento planificado.
+GYM-009 permite iniciar sesiones de entrenamiento con un snapshot histórico,
+sin registrar todavía series realizadas.
 
 ## Arquitectura
 
@@ -308,6 +310,45 @@ reintentar la petición. Cambiar entradas actualiza `updatedAt` de la plantilla.
 Estas plantillas no registran sesiones realizadas, pesos, repeticiones reales
 ni históricos. Auth, sus cookies y sesiones no cambian.
 
+### Sesiones de entrenamiento (GYM-009)
+
+Después de aplicar `pnpm db:deploy` y `pnpm db:generate`, las siguientes rutas
+requieren Bearer access token. No hay nuevas dependencias ni variables de entorno.
+
+- `POST /workout-sessions`: recibe únicamente `{ "workoutTemplateId": "UUID" }`.
+  Crea una sesión `IN_PROGRESS` (201) desde una plantilla propia y activa.
+  Una plantilla vacía devuelve 409; inexistente, ajena o archivada devuelve 404.
+- `GET /workout-sessions`: admite `status` (`IN_PROGRESS`, `COMPLETED`,
+  `CANCELLED`), `page=1` y `limit=20` (1–100). Devuelve
+  `{ items, page, limit, total, totalPages }`, solo del usuario autenticado,
+  ordenado por `startedAt desc, id desc`. Los items son resúmenes con `id`,
+  `name`, `status`, `notes`, `startedAt` y `endedAt`, sin cargar ejercicios.
+- `GET /workout-sessions/:id`: devuelve esos campos y `exercises` ordenados
+  por posición, con metadata histórica y objetivos `planned*`. Inexistente o
+  ajena devuelve 404. No se expone userId ni se consulta el catálogo al leerla.
+- `POST /workout-sessions/:id/complete`: pasa de `IN_PROGRESS` a `COMPLETED`
+  y establece `endedAt` (200).
+- `POST /workout-sessions/:id/cancel`: pasa de `IN_PROGRESS` a `CANCELLED`
+  y establece `endedAt` (200).
+
+Complete/cancel no reciben campos de body (puede omitirse o enviarse `{}`).
+Una sesión finalizada devuelve 409; ante complete/cancel concurrentes solo uno
+gana. Se permiten varias sesiones IN_PROGRESS por usuario. No hay reapertura.
+UUIDs inválidos, propiedades extra y queries no soportadas devuelven 400;
+solo el listado acepta query params y no se convierten números arbitrarios.
+
+El inicio copia nombre, orden, metadata de Exercise y planificación en una
+transacción con una vista consistente. Renombrar, reordenar, editar o archivar
+la plantilla, o cambiar el catálogo, no modifica el histórico. Los ejercicios
+inactivos ya vinculados se incluyen; no se está añadiendo un ejercicio nuevo.
+Las referencias de origen son opcionales (`ON DELETE SET NULL`), no propietarios
+del histórico. `sourceExerciseId` es solo metadata de procedencia y puede ser null;
+nombre, slug y demás datos se leen siempre del snapshot. No se expone sourceTemplateId.
+
+Las notas de sesión comienzan en null y no se editan en este ticket. El snapshot
+no tiene endpoints de edición ni registra peso, repeticiones realizadas o series;
+SetEntry corresponde a GYM-010. Auth y sus sesiones de refresh no cambian.
+
 ## Calidad y build
 
 Ejecuta desde la raíz antes de cerrar cualquier ticket:
@@ -351,5 +392,6 @@ Docker se utiliza únicamente para PostgreSQL 18 y Prisma ORM 7 pertenece al
 backend. La autenticación dispone de registro, login, consulta del usuario,
 refresh y cierre de sesiones. No se han configurado Redis, shadcn/ui, TanStack Query,
 Zustand ni servicios externos. Los modelos son User, Session, Profile, Exercise,
-WorkoutTemplate y WorkoutTemplateExercise. Hay plantillas planificadas privadas,
-pero no dashboard ni seguimiento de entrenamientos realizados.
+WorkoutTemplate, WorkoutTemplateExercise, WorkoutSession y WorkoutSessionExercise.
+Hay plantillas privadas y sesiones históricas con planificación congelada, pero
+no dashboard ni registro de series o rendimiento realizado.
