@@ -46,6 +46,12 @@ generados.
   archiva en lugar de borrarse físicamente mediante HTTP.
 - Las entradas de una plantilla mantienen posiciones contiguas desde 1;
   añadir, eliminar y reordenar deben preservar el orden de forma atómica.
+- WorkoutSession es histórico: persiste un snapshot atómico y no reconstruye
+  sus datos leyendo WorkoutTemplate o Exercise mutables.
+- Las sesiones de entrenamiento solo pasan de IN_PROGRESS a COMPLETED o
+  CANCELLED mediante una transición condicional atómica; no se reabren.
+- WorkoutSessionExercise conserva planificación. El rendimiento real pertenece
+  a un futuro SetEntry, no a campos del snapshot.
 
 ## Seguridad
 
