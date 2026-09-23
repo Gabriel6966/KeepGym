@@ -10,6 +10,7 @@ import { ProfilesModule } from './profiles/profiles.module';
 import { UsersModule } from './users/users.module';
 import { WorkoutTemplatesModule } from './workout-templates/workout-templates.module';
 import { WorkoutSessionsModule } from './workout-sessions/workout-sessions.module';
+import { HistoryModule } from './history/history.module';
 
 @Module({
   imports: [
@@ -25,6 +26,7 @@ import { WorkoutSessionsModule } from './workout-sessions/workout-sessions.modul
     ExercisesModule,
     WorkoutTemplatesModule,
     WorkoutSessionsModule,
+    HistoryModule,
   ],
   controllers: [HealthController],
   providers: [
