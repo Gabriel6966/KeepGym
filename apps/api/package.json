@@ -9,6 +9,7 @@
     "lint": "eslint . --max-warnings=0",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "tsc -p tsconfig.test.json && node --test \".test-dist/test/**/*.test.js\"",
+    "test:postgres": "tsc -p tsconfig.test.json && node --test .test-dist/test/integration/set-entries.postgres.js",
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate dev",
     "db:deploy": "prisma migrate deploy",

@@ -3,11 +3,13 @@ import {
   Body,
   ConflictException,
   Controller,
+  Delete,
   Get,
   HttpCode,
   NotFoundException,
   Param,
   ParseUUIDPipe,
+  Patch,
   Post,
   Query,
   UseGuards,
@@ -25,6 +27,12 @@ import { WorkoutSessionNotFoundError } from './errors/workout-session-not-found.
 import { WorkoutSessionBusyError } from './errors/workout-session-busy.error';
 import { WorkoutSessionInputGuard } from './guards/workout-session-input.guard';
 import { WorkoutSessionsService } from './workout-sessions.service';
+import { CreateSetEntryDto } from './dto/create-set-entry.dto';
+import { UpdateSetEntryDto } from './dto/update-set-entry.dto';
+import { InvalidSetEntryError } from './errors/invalid-set-entry.error';
+import { SetEntryNotFoundError } from './errors/set-entry-not-found.error';
+import { WorkoutSessionExerciseNotFoundError } from './errors/workout-session-exercise-not-found.error';
+import { WorkoutSessionNotEditableError } from './errors/workout-session-not-editable.error';
 
 @Controller('workout-sessions')
 @UseGuards(AccessTokenGuard, WorkoutSessionInputGuard)
@@ -73,22 +81,72 @@ export class WorkoutSessionsController {
     return this.toHttp(this.sessions.cancel(principal.userId, id));
   }
 
+  @Post(':sessionId/exercises/:sessionExerciseId/sets')
+  addSet(
+    @CurrentUser() principal: AccessPrincipal,
+    @Param('sessionId', new ParseUUIDPipe()) sessionId: string,
+    @Param('sessionExerciseId', new ParseUUIDPipe()) exerciseId: string,
+    @Body() input: CreateSetEntryDto,
+  ) {
+    return this.toHttp(
+      this.sessions.addSet(principal.userId, sessionId, exerciseId, input),
+    );
+  }
+
+  @Patch(':sessionId/exercises/:sessionExerciseId/sets/:setId')
+  updateSet(
+    @CurrentUser() principal: AccessPrincipal,
+    @Param('sessionId', new ParseUUIDPipe()) sessionId: string,
+    @Param('sessionExerciseId', new ParseUUIDPipe()) exerciseId: string,
+    @Param('setId', new ParseUUIDPipe()) setId: string,
+    @Body() input: UpdateSetEntryDto,
+  ) {
+    return this.toHttp(
+      this.sessions.updateSet(
+        principal.userId,
+        sessionId,
+        exerciseId,
+        setId,
+        input,
+      ),
+    );
+  }
+
+  @Delete(':sessionId/exercises/:sessionExerciseId/sets/:setId')
+  @HttpCode(204)
+  removeSet(
+    @CurrentUser() principal: AccessPrincipal,
+    @Param('sessionId', new ParseUUIDPipe()) sessionId: string,
+    @Param('sessionExerciseId', new ParseUUIDPipe()) exerciseId: string,
+    @Param('setId', new ParseUUIDPipe()) setId: string,
+  ) {
+    return this.toHttp(
+      this.sessions.removeSet(principal.userId, sessionId, exerciseId, setId),
+    );
+  }
+
   private async toHttp<T>(result: Promise<T>): Promise<T> {
     try {
       return await result;
     } catch (error: unknown) {
       if (
         error instanceof WorkoutTemplateNotFoundError ||
-        error instanceof WorkoutSessionNotFoundError
+        error instanceof WorkoutSessionNotFoundError ||
+        error instanceof SetEntryNotFoundError ||
+        error instanceof WorkoutSessionExerciseNotFoundError
       )
         throw new NotFoundException(error.message);
       if (
         error instanceof EmptyWorkoutTemplateError ||
         error instanceof InvalidWorkoutSessionStateError ||
-        error instanceof WorkoutSessionBusyError
+        error instanceof WorkoutSessionBusyError ||
+        error instanceof WorkoutSessionNotEditableError
       )
         throw new ConflictException(error.message);
-      if (error instanceof InvalidWorkoutSessionInputError)
+      if (
+        error instanceof InvalidWorkoutSessionInputError ||
+        error instanceof InvalidSetEntryError
+      )
         throw new BadRequestException(error.message);
       throw error;
     }

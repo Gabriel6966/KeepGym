@@ -230,10 +230,28 @@ model WorkoutSessionExercise {
   plannedRepsMax     Int             @map("planned_reps_max")
   plannedRestSeconds Int             @map("planned_rest_seconds")
   plannedNotes       String?         @map("planned_notes") @db.VarChar(500)
+  sets               SetEntry[]
   createdAt          DateTime        @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt          DateTime        @updatedAt @map("updated_at") @db.Timestamptz(3)
 
   @@unique([workoutSessionId, position], map: "workout_session_exercises_position_key")
   @@index([sourceExerciseId], map: "workout_session_exercises_source_idx")
   @@map("workout_session_exercises")
+}
+
+model SetEntry {
+  id                       String                 @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  workoutSessionExerciseId String                 @map("workout_session_exercise_id") @db.Uuid
+  workoutSessionExercise   WorkoutSessionExercise @relation(fields: [workoutSessionExerciseId], references: [id], onDelete: Cascade)
+  position                 Int
+  loadKg                   Decimal                @map("load_kg") @db.Decimal(8, 2)
+  reps                     Int
+  rpe                      Decimal?               @db.Decimal(3, 1)
+  rir                      Int?
+  completedAt              DateTime               @default(now()) @map("completed_at") @db.Timestamptz(3)
+  createdAt                DateTime               @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt                DateTime               @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  @@unique([workoutSessionExerciseId, position], map: "set_entries_exercise_position_key")
+  @@map("set_entries")
 }
