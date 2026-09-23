@@ -12,6 +12,8 @@ GYM-007 incorpora un catálogo global de ejercicios de solo lectura.
 GYM-008 añade plantillas privadas de entrenamiento planificado.
 GYM-009 permite iniciar sesiones de entrenamiento con un snapshot histórico.
 GYM-010 añade el registro de series realizadas sin modificar esa planificación.
+GYM-011 expone consultas privadas de histórico de entrenamientos y ejercicios,
+sin métricas derivadas ni tablas nuevas.
 
 ## Arquitectura
 
@@ -383,6 +385,51 @@ rollback y cascades, con PostgreSQL healthy, `.env`, migraciones y seed preparad
 `pnpm --filter @gym/api test:postgres`. Crean un usuario temporal y eliminan solo
 sus recursos al terminar, sin modificar el catálogo. Son opt-in: `pnpm test`
 sigue siendo independiente de Docker.
+
+### Histórico de entrenamientos y ejercicios (GYM-011)
+
+Las tres rutas son de solo lectura y requieren Bearer access token. No aceptan
+identidad en body/query: todas las consultas usan el principal autenticado.
+
+- `GET /history/workouts`: lista sesiones `COMPLETED` y `CANCELLED`, nunca
+  `IN_PROGRESS`. Admite `status` (uno de los dos estados históricos), `q`, `from`,
+  `to`, `page` y `limit`. Devuelve resúmenes con `id`, `name`, `status`, `startedAt`,
+  `endedAt`, `exerciseCount` y `setCount`, sin cargar sets completos.
+- `GET /history/workouts/:id`: devuelve un histórico propio terminado con notas,
+  ejercicios snapshot y sets ordenados por posición. Inexistente, ajeno o todavía
+  en progreso devuelve el mismo 404. No admite query params.
+- `GET /history/exercises/:exerciseId`: devuelve ocurrencias históricas de ese
+  UUID, con nombre de sesión, metadata snapshot, planificación y sets. Admite
+  `status`, `from`, `to`, `page` y `limit`, pero no `q`. Por defecto incluye solo
+  `COMPLETED`; `status=CANCELLED` consulta las canceladas. Un UUID válido sin
+  coincidencias devuelve 200 con `items: []`, `total: 0` y `totalPages: 0`.
+
+Ambos listados devuelven `{ items, page, limit, total, totalPages }`, ordenados por
+`startedAt desc, session id desc`. `page=1` y `limit=20` por defecto; límite máximo 100. `?limit=1` en ejercicio obtiene la ocurrencia completada más reciente.
+Una ocurrencia terminada puede conservar `sets: []`; no se inventa rendimiento
+para cumplir `plannedSets`. Las series de sesiones canceladas siguen visibles.
+
+`q` busca texto literal en el nombre snapshot, sin distinguir mayúsculas,
+recortando espacios exteriores (1–100 caracteres). `from` y `to` filtran
+`startedAt` inclusivamente, no `endedAt`. Se exigen fechas reales RFC3339 con
+zona explícita (`Z` o `±HH:MM`), segundos y hasta tres decimales de segundo,
+coherentes con la precisión de la base. El instante UTC debe permanecer entre los
+años 0001 y 9999. Ejemplo:
+`from=2026-09-01T00:00:00Z`. Usa `URLSearchParams` para codificar offsets con `+`.
+Un rango invertido, UUID inválido, query desconocida o paginación no válida
+devuelve 400; no hay interpretación de días locales.
+
+Nombre, metadata y objetivos provienen exclusivamente de snapshots. Cambiar o
+archivar una plantilla, o desactivar/renombrar el Exercise, no altera respuestas
+históricas. Un `sourceExerciseId: null` sigue permitiendo leer el detalle; no se
+reconstruye la identidad por slug para búsquedas por ejercicio. Las cargas y RPE
+se devuelven como números JSON mediante la conversión Decimal existente.
+
+No hay migración: se reutilizan los índices existentes. No cambia la API operativa
+`/workout-sessions`. `pnpm --filter @gym/api test:postgres` incluye el flujo HTTP
+histórico con dos usuarios, restauración del catálogo y limpieza de sus recursos
+temporales. Las suites PostgreSQL se ejecutan en secuencia para evitar que una
+prueba de cambios temporales del catálogo interfiera con otra.
 
 ## Calidad y build
 
