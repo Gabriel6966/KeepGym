@@ -67,6 +67,7 @@ void test('start delegates a scoped atomic snapshot and returns only frozen publ
     'plannedRestSeconds',
     'plannedSets',
     'position',
+    'sets',
   ]);
   assert.deepEqual(Object.keys(entry.exercise).sort(), [
     'equipment',

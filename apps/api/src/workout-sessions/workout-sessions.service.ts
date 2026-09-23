@@ -1,4 +1,9 @@
 import { Injectable } from '@nestjs/common';
+import type { SetEntry } from '../generated/prisma/client';
+import {
+  validateCreateSetEntry,
+  validateSetEntryChanges,
+} from './set-entry.validation';
 import { WorkoutSessionNotFoundError } from './errors/workout-session-not-found.error';
 import { WorkoutSessionsRepository } from './workout-sessions.repository';
 import {
@@ -6,6 +11,9 @@ import {
   validateWorkoutSessionIds,
 } from './workout-session.validation';
 import type {
+  CreateSetEntryInput,
+  UpdateSetEntryInput,
+  PublicSetEntry,
   ListWorkoutSessionsInput,
   PublicWorkoutSession,
   PublicWorkoutSessionSummary,
@@ -14,6 +22,18 @@ import type {
   WorkoutSessionPage,
   WorkoutSessionRecord,
 } from './workout-sessions.types';
+
+function publicSetEntry(set: SetEntry): PublicSetEntry {
+  return {
+    id: set.id,
+    position: set.position,
+    loadKg: set.loadKg.toNumber(),
+    reps: set.reps,
+    rpe: set.rpe === null ? null : set.rpe.toNumber(),
+    rir: set.rir,
+    completedAt: set.completedAt,
+  };
+}
 
 function publicSummary(
   session: WorkoutSessionListRecord,
@@ -49,6 +69,9 @@ function publicSession(session: WorkoutSessionRecord): PublicWorkoutSession {
         plannedRepsMax: entry.plannedRepsMax,
         plannedRestSeconds: entry.plannedRestSeconds,
         plannedNotes: entry.plannedNotes,
+        sets: [...entry.sets]
+          .sort((a, b) => a.position - b.position)
+          .map(publicSetEntry),
       })),
   };
 }
@@ -56,6 +79,52 @@ function publicSession(session: WorkoutSessionRecord): PublicWorkoutSession {
 @Injectable()
 export class WorkoutSessionsService {
   constructor(private readonly repository: WorkoutSessionsRepository) {}
+
+  async addSet(
+    userId: string,
+    sessionId: string,
+    exerciseId: string,
+    input: CreateSetEntryInput,
+  ): Promise<PublicSetEntry> {
+    validateWorkoutSessionIds(userId, sessionId, exerciseId);
+    return publicSetEntry(
+      await this.repository.addSet(
+        userId,
+        sessionId,
+        exerciseId,
+        validateCreateSetEntry(input),
+      ),
+    );
+  }
+
+  async updateSet(
+    userId: string,
+    sessionId: string,
+    exerciseId: string,
+    setId: string,
+    input: UpdateSetEntryInput,
+  ): Promise<PublicSetEntry> {
+    validateWorkoutSessionIds(userId, sessionId, exerciseId, setId);
+    return publicSetEntry(
+      await this.repository.updateSet(
+        userId,
+        sessionId,
+        exerciseId,
+        setId,
+        validateSetEntryChanges(input),
+      ),
+    );
+  }
+
+  async removeSet(
+    userId: string,
+    sessionId: string,
+    exerciseId: string,
+    setId: string,
+  ): Promise<void> {
+    validateWorkoutSessionIds(userId, sessionId, exerciseId, setId);
+    await this.repository.removeSet(userId, sessionId, exerciseId, setId);
+  }
 
   async start(
     userId: string,

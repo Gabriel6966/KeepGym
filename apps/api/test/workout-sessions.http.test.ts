@@ -139,6 +139,7 @@ void test('start returns 201 with explicit ordered snapshot, null notes/endedAt 
       'plannedRestSeconds',
       'plannedSets',
       'position',
+      'sets',
     ]);
     assert.deepEqual(object(entry.exercise), {
       sourceExerciseId: original.exerciseId,

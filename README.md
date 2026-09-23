@@ -10,8 +10,8 @@ No hay interfaz de autenticación en el frontend.
 GYM-006 añade el perfil privado del usuario autenticado, sin medidas corporales.
 GYM-007 incorpora un catálogo global de ejercicios de solo lectura.
 GYM-008 añade plantillas privadas de entrenamiento planificado.
-GYM-009 permite iniciar sesiones de entrenamiento con un snapshot histórico,
-sin registrar todavía series realizadas.
+GYM-009 permite iniciar sesiones de entrenamiento con un snapshot histórico.
+GYM-010 añade el registro de series realizadas sin modificar esa planificación.
 
 ## Arquitectura
 
@@ -346,8 +346,43 @@ del histórico. `sourceExerciseId` es solo metadata de procedencia y puede ser n
 nombre, slug y demás datos se leen siempre del snapshot. No se expone sourceTemplateId.
 
 Las notas de sesión comienzan en null y no se editan en este ticket. El snapshot
-no tiene endpoints de edición ni registra peso, repeticiones realizadas o series;
-SetEntry corresponde a GYM-010. Auth y sus sesiones de refresh no cambian.
+no tiene endpoints de edición. Auth y sus sesiones de refresh no cambian.
+
+### Registro de series (GYM-010)
+
+Aplica `pnpm db:deploy` y `pnpm db:generate`. No hay dependencias ni variables
+nuevas. Las siguientes rutas requieren Bearer access token y verifican la cadena
+usuario → sesión → ejercicio de sesión → serie; recursos ajenos devuelven 404.
+
+- `POST /workout-sessions/:sessionId/exercises/:sessionExerciseId/sets`: registra
+  una serie realizada (201). Recibe `loadKg` y `reps`, y opcionalmente `rpe`/`rir`.
+  El servidor asigna posición al final y `completedAt`; no admite IDs ni timestamps
+  en el body.
+- `PATCH /workout-sessions/:sessionId/exercises/:sessionExerciseId/sets/:setId`:
+  corrige solo esos cuatro valores (200), sin cambiar posición ni `completedAt`.
+  Omitir `rpe`/`rir` conserva el valor; `null` lo limpia. Un PATCH vacío devuelve 400.
+- `DELETE /workout-sessions/:sessionId/exercises/:sessionExerciseId/sets/:setId`:
+  elimina la serie (204) y compacta posiciones atómicamente desde 1.
+- `GET /workout-sessions/:id` incluye `sets` ordenados por posición en cada
+  ejercicio, junto a los objetivos `planned*` intactos. El listado sigue resumido.
+
+`loadKg` es un número entre 0 y 10000 con máximo dos decimales, persistido como
+`Decimal(8,2)` en kilogramos y devuelto como número JSON. `reps` es entero 1–1000;
+`rpe` admite 1–10 en pasos de 0,5 y `rir` enteros 0–10. Ambos pueden coexistir o
+ser null. No se convierten strings a números; campos extra y valores inválidos
+devuelven 400. No se admiten queries en estas rutas.
+
+Solo se escriben series mientras la sesión está `IN_PROGRESS`. Complete/cancel
+y las escrituras de series se coordinan transaccionalmente sobre la misma sesión:
+cuando termina, crear, corregir o borrar devuelve 409. Cancelar conserva las series.
+Completar permite cero series o una cantidad distinta a `plannedSets`. No hay
+analítica ni edición del snapshot; SetEntry guarda únicamente datos realizados.
+
+Para repetir las pruebas reales de Decimal, CHECKs, concurrencia complete/add,
+rollback y cascades, con PostgreSQL healthy, `.env`, migraciones y seed preparados:
+`pnpm --filter @gym/api test:postgres`. Crean un usuario temporal y eliminan solo
+sus recursos al terminar, sin modificar el catálogo. Son opt-in: `pnpm test`
+sigue siendo independiente de Docker.
 
 ## Calidad y build
 
@@ -392,6 +427,6 @@ Docker se utiliza únicamente para PostgreSQL 18 y Prisma ORM 7 pertenece al
 backend. La autenticación dispone de registro, login, consulta del usuario,
 refresh y cierre de sesiones. No se han configurado Redis, shadcn/ui, TanStack Query,
 Zustand ni servicios externos. Los modelos son User, Session, Profile, Exercise,
-WorkoutTemplate, WorkoutTemplateExercise, WorkoutSession y WorkoutSessionExercise.
-Hay plantillas privadas y sesiones históricas con planificación congelada, pero
-no dashboard ni registro de series o rendimiento realizado.
+WorkoutTemplate, WorkoutTemplateExercise, WorkoutSession, WorkoutSessionExercise
+y SetEntry. Hay plantillas privadas, snapshots históricos y registro de series,
+sin dashboard ni analítica de rendimiento.

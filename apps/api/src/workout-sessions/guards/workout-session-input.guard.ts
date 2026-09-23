@@ -16,9 +16,9 @@ export class WorkoutSessionInputGuard implements CanActivate {
         'Only the workout session list accepts query parameters.',
       );
     const body: unknown = request.body;
-    // Start uses its DTO; all other routes accept no payload (or an empty object).
+    // These mutations use DTOs; other routes accept no payload (or {}).
     if (
-      handler !== 'start' &&
+      !['start', 'addSet', 'updateSet'].includes(handler) &&
       body !== undefined &&
       (typeof body !== 'object' ||
         body === null ||

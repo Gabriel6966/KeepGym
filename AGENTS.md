@@ -50,8 +50,11 @@ generados.
   sus datos leyendo WorkoutTemplate o Exercise mutables.
 - Las sesiones de entrenamiento solo pasan de IN_PROGRESS a COMPLETED o
   CANCELLED mediante una transición condicional atómica; no se reabren.
-- WorkoutSessionExercise conserva planificación. El rendimiento real pertenece
-  a un futuro SetEntry, no a campos del snapshot.
+- WorkoutSessionExercise conserva planificación. SetEntry es la fuente histórica
+  del rendimiento realizado; nunca mezclar ambos datos. La carga se persiste en
+  kilogramos usando Decimal, no Float.
+- Las series mantienen posiciones contiguas desde 1 mediante operaciones atómicas
+  coordinadas con complete/cancel. Una sesión terminada no admite cambios desde HTTP.
 
 ## Seguridad
 

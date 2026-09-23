@@ -8,7 +8,10 @@ import type {
 
 // Historical reads never join a mutable source template or catalog exercise.
 export const sessionInclude = {
-  exercises: { orderBy: { position: 'asc' } },
+  exercises: {
+    orderBy: { position: 'asc' },
+    include: { sets: { orderBy: { position: 'asc' } } },
+  },
 } satisfies Prisma.WorkoutSessionInclude;
 
 export type WorkoutSessionRecord = Prisma.WorkoutSessionGetPayload<{
@@ -57,6 +60,7 @@ export interface PublicWorkoutSessionExercise {
   plannedRepsMax: number;
   plannedRestSeconds: number;
   plannedNotes: string | null;
+  sets: PublicSetEntry[];
 }
 export interface PublicWorkoutSession extends PublicWorkoutSessionSummary {
   exercises: PublicWorkoutSessionExercise[];
@@ -69,3 +73,20 @@ export interface WorkoutSessionPage {
   totalPages: number;
 }
 export type WorkoutSessionListRecord = WorkoutSession;
+
+export interface CreateSetEntryInput {
+  loadKg: number;
+  reps: number;
+  rpe?: number | null;
+  rir?: number | null;
+}
+export type UpdateSetEntryInput = Partial<CreateSetEntryInput>;
+export interface PublicSetEntry {
+  id: string;
+  position: number;
+  loadKg: number;
+  reps: number;
+  rpe: number | null;
+  rir: number | null;
+  completedAt: Date;
+}
