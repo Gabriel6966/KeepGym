@@ -55,6 +55,10 @@ generados.
   kilogramos usando Decimal, no Float.
 - Las series mantienen posiciones contiguas desde 1 mediante operaciones atómicas
   coordinadas con complete/cancel. Una sesión terminada no admite cambios desde HTTP.
+- Analytics deriva métricas de snapshots y SetEntry; no persistir métricas
+  calculables sin una razón arquitectónica. Solo COMPLETED alimenta las métricas
+  principales. El volumen usa carga externa en kg × reps; el e1RM inicial usa
+  Epley únicamente con carga positiva y 1–20 reps, redondeando al presentar.
 
 ## Seguridad
 
