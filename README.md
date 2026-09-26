@@ -431,6 +431,67 @@ histórico con dos usuarios, restauración del catálogo y limpieza de sus recur
 temporales. Las suites PostgreSQL se ejecutan en secuencia para evitar que una
 prueba de cambios temporales del catálogo interfiera con otra.
 
+### Analytics de progreso (GYM-012)
+
+Rutas read-only con Bearer access token, siempre limitadas al usuario autenticado
+y a sesiones `COMPLETED`. No aceptan `status` ni `userId`; `CANCELLED` e
+`IN_PROGRESS` quedan excluidas aunque contengan sets. History sigue permitiendo
+consultar los datos de sesiones canceladas.
+
+- `GET /analytics/overview?from=...&to=...`: devuelve `completedWorkouts`,
+  `completedSets`, `totalReps` y `totalVolumeKg`. Cuenta también entrenamientos
+  completados sin sets.
+- `GET /analytics/exercises/:exerciseId?from=...&to=...&page=1&limit=20`:
+  devuelve metadata histórica, `summary`, `heaviestSet`, `bestEstimated1RMSet`,
+  `performances`, `page`, `limit`, `total` y `totalPages`. `summary` contiene
+  `sessions` (ocurrencias), `sets`, `reps`, `totalVolumeKg`, `maxLoadKg` y
+  `maxEstimated1RMKg`. El resumen y los candidatos cubren todo el rango,
+  **no solamente la página actual**. Se pagina por ocurrencia, nunca por set.
+
+Sin fechas se consulta todo el histórico, sin periodo implícito. `from`/`to`
+filtran `WorkoutSession.startedAt` inclusivamente con las mismas reglas RFC3339
+de History (zona explícita, fechas reales, hasta milisegundos, `from <= to`).
+`page >= 1`, `limit` entre 1 y 100; valores por defecto 1 y 20. UUID, rango,
+paginación o query desconocida inválidos devuelven 400; sin autenticación, 401.
+
+Las actuaciones se ordenan por `startedAt DESC, sessionId DESC`, con sets por
+`position ASC`. Cada actuación conserva su metadata snapshot e incluye conteos,
+volumen, máximos y sets con e1RM derivado. El objeto superior `exercise` utiliza
+el snapshot COMPLETED más reciente **dentro del rango**, independientemente de
+la página. Nunca se consulta el catálogo mutable ni se reconstruye identidad
+por slug si `sourceExerciseId` es null.
+
+Un UUID sin ocurrencias devuelve 200 con resumen cero, `exercise: null`, ambos
+candidatos null y `performances: []`. Una ocurrencia sin sets sí cuenta en
+`sessions` y conserva su snapshot. Sin observaciones, `maxLoadKg` es null; una
+carga observada de 0 sí produce `maxLoadKg: 0`. Si ningún set es elegible para
+Epley, `maxEstimated1RMKg` y `bestEstimated1RMSet` son null.
+
+Fórmulas, sin persistir resultados:
+
+- Volumen externo: `loadKg * reps`; suma exacta con NUMERIC/Decimal y números
+  públicos redondeados a dos decimales. `80×8 + 80×8 + 82.25×7 = 1855.75`.
+- Epley: `loadKg * (1 + reps / 30)`, solo si `loadKg > 0` y reps entre 1 y 20.
+  `82.25×7` estima `101.44 kg`. Fuera de esas condiciones se devuelve null,
+  no cero. Es una estimación, no una medición ni un evento de récord personal.
+- Peso corporal con carga externa 0 produce volumen externo 0: no significa
+  ausencia de esfuerzo. No se estima masa corporal efectiva.
+
+`heaviestSet` desempata por carga, reps, completedAt e id, todos descendentes.
+`bestEstimated1RMSet` compara primero Epley **sin redondear**, luego carga, reps,
+completedAt e id descendentes. Ambos incluyen contexto de sesión y set, nunca
+datos privados. La API devuelve números, no objetos Prisma Decimal.
+
+No hay nuevas tablas, columnas, migraciones ni dependencias. Se reutilizan los
+índices de usuario/fecha, usuario/estado, sourceExerciseId y ejercicio/posición.
+El overview usa una agregación SQL parametrizada (1 SELECT). La consulta por
+ejercicio usa un snapshot RepeatableRead: agregación global, candidatos acotados
+(máximo uno por rep elegible), metadata y página con relaciones batched; se
+verificaron 7 SELECTs, independientes del tamaño de página. Las fórmulas Epley
+permanecen centralizadas en funciones puras; no se carga todo el histórico para
+calcular máximos. `test:postgres` comprueba el flujo HTTP, precisión, ownership,
+snapshots y consultas; restaura el catálogo y elimina solo sus datos temporales.
+
 ## Calidad y build
 
 Ejecuta desde la raíz antes de cerrar cualquier ticket:
@@ -475,5 +536,6 @@ backend. La autenticación dispone de registro, login, consulta del usuario,
 refresh y cierre de sesiones. No se han configurado Redis, shadcn/ui, TanStack Query,
 Zustand ni servicios externos. Los modelos son User, Session, Profile, Exercise,
 WorkoutTemplate, WorkoutTemplateExercise, WorkoutSession, WorkoutSessionExercise
-y SetEntry. Hay plantillas privadas, snapshots históricos y registro de series,
-sin dashboard ni analítica de rendimiento.
+y SetEntry. Hay plantillas privadas, snapshots históricos, registro de series y
+analytics derivados de entrenamientos completados, sin dashboard ni eventos de
+récords personales.
