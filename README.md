@@ -492,6 +492,49 @@ permanecen centralizadas en funciones puras; no se carga todo el histórico para
 calcular máximos. `test:postgres` comprueba el flujo HTTP, precisión, ownership,
 snapshots y consultas; restaura el catálogo y elimina solo sus datos temporales.
 
+### Récords personales actuales (GYM-013)
+
+`GET /records/exercises/:exerciseId` requiere Bearer access token y devuelve
+`{ exercise, maxLoadRecord, estimated1RMRecord }` para el usuario autenticado.
+Es una consulta all-time: no admite query params, rangos de fechas, paginación
+ni campos de body. No hay endpoints de escritura. UUID o entrada inválida: 400;
+sin autenticación: 401. UUID válido sin ocurrencias COMPLETED: 200 con los tres
+campos null. Una ocurrencia sin sets elegibles puede aportar metadata y devolver
+ambos récords null.
+
+- `MAX_LOAD`: mayor carga externa **positiva**. Si vuelve a alcanzarse, conserva
+  el primer set según `completedAt ASC, setId ASC`, independientemente de reps.
+  Por ejemplo, 100×3 el día 1 mantiene el récord de carga frente a 100×5 el día 10.
+- `ESTIMATED_1RM`: reutiliza exactamente Epley de Analytics, con carga positiva
+  y 1–20 reps. Compara el valor matemático sin redondear y, en empate exacto,
+  conserva el primer `completedAt`, seguido del menor setId. No aplica los
+  desempates de Analytics que favorecen carga/reps/recencia. `82.25×7` devuelve
+  `101.44 kg` tras redondear únicamente la representación pública.
+
+Cada récord incluye `type`, `valueKg`, `achievedAt`, contexto snapshot de sesión
+(`id`, `name`, `startedAt`) y el set (`id`, `position`, `loadKg`, `reps`, `rpe`,
+`rir`, `completedAt`). `achievedAt` siempre es `SetEntry.completedAt`.
+Solo cuentan sesiones COMPLETED propias: CANCELLED e IN_PROGRESS no contribuyen.
+Carga 0 no genera ninguno de los dos récords; más de 20 reps todavía puede
+generar MAX_LOAD, pero no e1RM. Valores públicos en kg como números JSON, nunca
+objetos Prisma Decimal.
+
+`exercise` contiene la metadata del snapshot COMPLETED más reciente (orden
+`startedAt DESC, sessionId DESC`, posición como desempate), que puede ser más
+reciente que el set que estableció el récord. No se consulta el catálogo actual:
+desactivarlo o editarlo, o renombrar/archivar la plantilla, no cambia los récords.
+Si `sourceExerciseId` es null no se reconstruye su identidad mediante slug.
+
+No hay tablas, columnas, eventos, migraciones ni dependencias nuevas. Se
+reutilizan los índices existentes. La lectura combina metadata, MAX_LOAD y
+como máximo un candidato de carga máxima por rep count elegible (20 en total),
+conservando la primera consecución dentro de cada grupo, en una transacción
+RepeatableRead. Se verificaron 3 SELECTs tanto con historial como sin él; no se
+materializa todo el historial ni se ejecutan consultas por sesión/set.
+`test:postgres` verifica el flujo HTTP con dos usuarios,
+desempates, snapshots, precisión y consultas acotadas; restaura el catálogo y
+limpia únicamente los datos temporales.
+
 ## Calidad y build
 
 Ejecuta desde la raíz antes de cerrar cualquier ticket:
@@ -537,5 +580,5 @@ refresh y cierre de sesiones. No se han configurado Redis, shadcn/ui, TanStack Q
 Zustand ni servicios externos. Los modelos son User, Session, Profile, Exercise,
 WorkoutTemplate, WorkoutTemplateExercise, WorkoutSession, WorkoutSessionExercise
 y SetEntry. Hay plantillas privadas, snapshots históricos, registro de series y
-analytics derivados de entrenamientos completados, sin dashboard ni eventos de
-récords personales.
+analytics y récords personales derivados de entrenamientos completados, sin
+dashboard ni eventos de récords personales.

@@ -12,6 +12,7 @@ import { WorkoutTemplatesModule } from './workout-templates/workout-templates.mo
 import { WorkoutSessionsModule } from './workout-sessions/workout-sessions.module';
 import { HistoryModule } from './history/history.module';
 import { AnalyticsModule } from './analytics/analytics.module';
+import { RecordsModule } from './records/records.module';
 
 @Module({
   imports: [
@@ -29,6 +30,7 @@ import { AnalyticsModule } from './analytics/analytics.module';
     WorkoutSessionsModule,
     HistoryModule,
     AnalyticsModule,
+    RecordsModule,
   ],
   controllers: [HealthController],
   providers: [
