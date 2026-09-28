@@ -59,6 +59,9 @@ generados.
   calculables sin una razón arquitectónica. Solo COMPLETED alimenta las métricas
   principales. El volumen usa carga externa en kg × reps; el e1RM inicial usa
   Epley únicamente con carga positiva y 1–20 reps, redondeando al presentar.
+- Personal Records se deriva de SetEntry de sesiones COMPLETED, sin persistir
+  PRs prematuramente. El record holder es la primera consecución del valor
+  máximo actual según completedAt y setId, no la repetición más reciente.
 
 ## Seguridad
 
