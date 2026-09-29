@@ -14,6 +14,7 @@ import { HistoryModule } from './history/history.module';
 import { AnalyticsModule } from './analytics/analytics.module';
 import { RecordsModule } from './records/records.module';
 import { BodyMeasurementsModule } from './body-measurements/body-measurements.module';
+import { BodyAnalyticsModule } from './body-analytics/body-analytics.module';
 
 @Module({
   imports: [
@@ -33,6 +34,7 @@ import { BodyMeasurementsModule } from './body-measurements/body-measurements.mo
     AnalyticsModule,
     RecordsModule,
     BodyMeasurementsModule,
+    BodyAnalyticsModule,
   ],
   controllers: [HealthController],
   providers: [
