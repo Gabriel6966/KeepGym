@@ -535,6 +535,34 @@ materializa todo el historial ni se ejecutan consultas por sesión/set.
 desempates, snapshots, precisión y consultas acotadas; restaura el catálogo y
 limpia únicamente los datos temporales.
 
+## Mediciones corporales
+
+Todas las rutas requieren Bearer access token y usan exclusivamente el usuario
+autenticado: `POST /body-measurements`, `GET /body-measurements` y
+`GET`, `PATCH`, `DELETE /body-measurements/:id`. DELETE elimina la observación
+físicamente. Los recursos ajenos o inexistentes responden 404.
+
+Se persisten observaciones históricas, no peso mutable en Profile: `weightKg`
+en kg, `bodyFatPercent` en %, y `waistCm`, `chestCm`, `hipsCm` en cm. Son números
+positivos de hasta dos decimales (máximos 1000, 100 y 500 respectivamente),
+almacenados como NUMERIC y devueltos como números JSON. No se aceptan strings
+numéricos ni unidades imperiales. Debe existir al menos una métrica no-null.
+
+`measuredAt` es opcional en POST (por defecto ahora). Si se proporciona, exige
+RFC3339 con timezone explícito y precisión máxima de milisegundos; solo admite
+60 segundos de tolerancia futura por desfase de reloj. `notes` se recorta en los
+extremos y admite hasta 1000 caracteres. PATCH distingue campos ausentes (sin
+cambio) de null (limpia métricas o notas); `measuredAt: null` y PATCH vacío son
+inválidos. La validación del estado resultante se ejecuta bajo bloqueo de fila
+en una transacción y seis CHECKs protegen rangos y observaciones no vacías.
+
+El listado admite `from`, `to` inclusivos sobre `measuredAt`, con las mismas
+reglas de timezone y `from <= to`; sin rango devuelve todo el histórico.
+`page=1` y `limit=20` por defecto, máximo 100 por página. Orden estable
+`measuredAt DESC, id DESC`; respuesta `items`, `page`, `limit`, `total`,
+`totalPages`. Se permiten varias observaciones con la misma fecha/hora.
+No hay estadísticas corporales ni cambios en Profile.
+
 ## Calidad y build
 
 Ejecuta desde la raíz antes de cerrar cualquier ticket:
@@ -579,6 +607,7 @@ backend. La autenticación dispone de registro, login, consulta del usuario,
 refresh y cierre de sesiones. No se han configurado Redis, shadcn/ui, TanStack Query,
 Zustand ni servicios externos. Los modelos son User, Session, Profile, Exercise,
 WorkoutTemplate, WorkoutTemplateExercise, WorkoutSession, WorkoutSessionExercise
-y SetEntry. Hay plantillas privadas, snapshots históricos, registro de series y
+y SetEntry, además de BodyMeasurement para observaciones corporales históricas.
+Hay plantillas privadas, snapshots históricos, registro de series y
 analytics y récords personales derivados de entrenamientos completados, sin
 dashboard ni eventos de récords personales.

@@ -18,6 +18,7 @@ model User {
   profile          Profile?
   workoutTemplates WorkoutTemplate[]
   workoutSessions  WorkoutSession[]
+  bodyMeasurements BodyMeasurement[]
 
   @@map("users")
 }
@@ -75,6 +76,24 @@ model Profile {
   updatedAt       DateTime         @updatedAt @map("updated_at") @db.Timestamptz(3)
 
   @@map("profiles")
+}
+
+model BodyMeasurement {
+  id             String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId         String   @map("user_id") @db.Uuid
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  measuredAt     DateTime @default(now()) @map("measured_at") @db.Timestamptz(3)
+  weightKg       Decimal? @map("weight_kg") @db.Decimal(6, 2)
+  bodyFatPercent Decimal? @map("body_fat_percent") @db.Decimal(5, 2)
+  waistCm        Decimal? @map("waist_cm") @db.Decimal(6, 2)
+  chestCm        Decimal? @map("chest_cm") @db.Decimal(6, 2)
+  hipsCm         Decimal? @map("hips_cm") @db.Decimal(6, 2)
+  notes          String?  @db.Text
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt      DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  @@index([userId, measuredAt, id], map: "body_measurements_user_measured_idx")
+  @@map("body_measurements")
 }
 
 enum MuscleGroup {
