@@ -561,7 +561,37 @@ reglas de timezone y `from <= to`; sin rango devuelve todo el histórico.
 `page=1` y `limit=20` por defecto, máximo 100 por página. Orden estable
 `measuredAt DESC, id DESC`; respuesta `items`, `page`, `limit`, `total`,
 `totalPages`. Se permiten varias observaciones con la misma fecha/hora.
-No hay estadísticas corporales ni cambios en Profile.
+Este CRUD no añade estadísticas ni cambios en Profile.
+
+## Analytics corporales
+
+Read-only, con Bearer access token y scope exclusivo del usuario autenticado:
+
+- `GET /body-analytics/overview`: `latest`, `previous` y `change` por cada una de
+  `weightKg`, `bodyFatPercent`, `waistCm`, `chestCm`, `hipsCm`. Cada métrica usa
+  sus propias dos observaciones no-null más recientes, con desempate `id DESC`.
+  Sin datos, los tres valores son null; con uno, previous/change son null.
+  `change = latest - previous`, redondeado a dos decimales, sin juicios de valor.
+- `GET /body-analytics/timeline?metric=weightKg`: requiere una de esas cinco
+  métricas; devuelve `metric`, `unit`, `items` (`measurementId`, `measuredAt`,
+  `value`), `page`, `limit`, `total`, `totalPages`. Solo incluye valores no-null.
+  Orden **measuredAt ASC, id ASC**, a diferencia del listado operativo newest-first.
+  `page=1`, `limit=50` por defecto, máximo 200; total abarca todo el rango.
+
+Ambos aceptan `from`/`to` inclusivos sobre `measuredAt`, RFC3339 con timezone y
+precisión máxima de milisegundos, `from <= to`. Sin rango son all-time;
+previous nunca se busca fuera del rango. Se rechazan parámetros desconocidos.
+Unidades canónicas: kg, percent, cm; Profile.unitSystem no altera estos datos.
+Los NUMERIC se leen como decimales exactos y las diferencias se calculan en
+centésimas enteras; la API devuelve números JSON, sin artefactos flotantes.
+
+Sin tablas, migraciones ni dependencias nuevas: se reutiliza el índice
+`BodyMeasurement(userId, measuredAt, id)`. Overview usa una única sentencia SQL
+parametrizada con cinco lecturas limitadas a dos observaciones (máximo diez filas).
+Timeline usa dos SELECTs (página y total) bajo RepeatableRead; la selección de
+columna procede de una allowlist SQL interna. Estos conteos se verifican en
+`test:postgres`, junto con métricas parciales, ownership, rangos, precisión y
+lectura consistente ante correcciones concurrentes. No hay BMI, goals ni trends.
 
 ## Calidad y build
 
