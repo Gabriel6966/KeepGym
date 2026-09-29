@@ -593,6 +593,35 @@ columna procede de una allowlist SQL interna. Estos conteos se verifican en
 `test:postgres`, junto con métricas parciales, ownership, rangos, precisión y
 lectura consistente ante correcciones concurrentes. No hay BMI, goals ni trends.
 
+## Tendencias semanales de entrenamiento
+
+`GET /training-trends/weekly` requiere Bearer access token y exactamente tres
+parámetros: `from`, `to` (RFC3339 con timezone, precisión máxima de milisegundos)
+y `timezone` (zona IANA, por ejemplo `Europe/Madrid`, `America/New_York`, `UTC`).
+No acepta paginación, status ni otros filtros. Límites inclusivos sobre
+`WorkoutSession.startedAt`, `from <= to`, máximo 730 días transcurridos de
+24 horas. No hay periodo por defecto. Los offsets sueltos (`+02:00`, `GMT+2`)
+no sustituyen una zona IANA; los aliases válidos se normalizan mediante Intl.
+
+La respuesta incluye `timezone`, `from`/`to` normalizados a UTC (mismos instantes)
+y `buckets`, ordenados por `weekStart ASC`. Cada bucket tiene `weekStart`,
+`completedWorkouts`, `completedSets`, `totalReps`, `totalVolumeKg`. La semana empieza
+el lunes a las 00:00 **en la zona solicitada**, con DST gestionado por PostgreSQL;
+`weekStart` es una fecha local `YYYY-MM-DD`, no un timestamp UTC. El filtro se aplica
+antes de agrupar: las semanas de los extremos pueden representar actividad parcial.
+
+Solo cuentan sesiones COMPLETED propias; CANCELLED e IN_PROGRESS quedan excluidas.
+Las semanas son sparse: sin workouts completados no se genera bucket. Un workout
+sin series sí cuenta y puede producir un bucket con sets/reps/volumen cero. El
+volumen externo es `loadKg * reps` (carga 0 aporta volumen 0, no ausencia de esfuerzo),
+calculado con NUMERIC en PostgreSQL y presentado como número a dos decimales.
+
+Una única consulta parametrizada con LEFT JOINs y COUNT DISTINCT evita N+1 y
+contar varias veces un workout con varios ejercicios. Se verifican los límites
+Madrid/UTC/Nueva York, invierno/verano, aislamiento, precisión y el plan real en
+`test:postgres`. Se conservan las ocho migraciones e índices existentes; no se
+persisten agregados ni se añaden dependencias, tendencias por ejercicio o frontend.
+
 ## Calidad y build
 
 Ejecuta desde la raíz antes de cerrar cualquier ticket:

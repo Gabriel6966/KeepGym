@@ -66,6 +66,8 @@ generados.
 - Personal Records se deriva de SetEntry de sesiones COMPLETED, sin persistir
   PRs prematuramente. El record holder es la primera consecución del valor
   máximo actual según completedAt y setId, no la repetición más reciente.
+- Los agregados temporales de entrenamiento definen explícitamente su timezone
+  y usan startedAt de sesiones COMPLETED; los agregados semanales no se persisten.
 
 ## Seguridad
 
