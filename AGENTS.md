@@ -41,7 +41,9 @@ generados.
 - Los recursos del usuario autenticado obtienen su identidad del principal,
   nunca de un userId enviado por el cliente.
 - Profile contiene datos relativamente estables. El peso y otras medidas
-  corporales pertenecen a un futuro histórico BodyMeasurement, no a Profile.
+  corporales pertenecen al histórico BodyMeasurement, no a Profile. Persistir
+  mediciones en kg/cm/% usando Decimal; sus analytics se derivarán posteriormente.
+  Cada observación conserva al menos una métrica, también tras PATCH concurrentes.
 - WorkoutTemplate representa planificación, nunca rendimiento realizado. Se
   archiva en lugar de borrarse físicamente mediante HTTP.
 - Las entradas de una plantilla mantienen posiciones contiguas desde 1;
