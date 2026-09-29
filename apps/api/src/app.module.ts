@@ -15,6 +15,7 @@ import { AnalyticsModule } from './analytics/analytics.module';
 import { RecordsModule } from './records/records.module';
 import { BodyMeasurementsModule } from './body-measurements/body-measurements.module';
 import { BodyAnalyticsModule } from './body-analytics/body-analytics.module';
+import { TrainingTrendsModule } from './training-trends/training-trends.module';
 
 @Module({
   imports: [
@@ -35,6 +36,7 @@ import { BodyAnalyticsModule } from './body-analytics/body-analytics.module';
     RecordsModule,
     BodyMeasurementsModule,
     BodyAnalyticsModule,
+    TrainingTrendsModule,
   ],
   controllers: [HealthController],
   providers: [
