@@ -620,7 +620,37 @@ Una única consulta parametrizada con LEFT JOINs y COUNT DISTINCT evita N+1 y
 contar varias veces un workout con varios ejercicios. Se verifican los límites
 Madrid/UTC/Nueva York, invierno/verano, aislamiento, precisión y el plan real en
 `test:postgres`. Se conservan las ocho migraciones e índices existentes; no se
-persisten agregados ni se añaden dependencias, tendencias por ejercicio o frontend.
+persisten agregados ni se añaden dependencias o frontend.
+
+### Tendencias semanales por ejercicio (GYM-017)
+
+`GET /training-trends/exercises/:exerciseId/weekly` requiere Bearer access token,
+UUID válido y las mismas queries obligatorias `from`, `to`, `timezone` del endpoint
+global: timestamps con zona explícita, límites inclusivos sobre `startedAt`, rango
+máximo de 730 días y timezone IANA. No acepta otras queries ni paginación.
+
+Solo cuenta rendimiento propio COMPLETED con al menos un SetEntry para ese
+`sourceExerciseId`. Una occurrence sin series no cuenta aquí, aunque el workout
+sí cuente en las tendencias globales. Las semanas comienzan el lunes local,
+`weekStart` es `YYYY-MM-DD`, se ordenan ASC y no se rellenan semanas vacías.
+
+Devuelve `exercise`, `timezone`, límites normalizados a UTC y `buckets` con
+`completedWorkouts` distintos, `completedSets`, `totalReps`, `totalVolumeKg`,
+`maxLoadKg` y `maxEstimated1RMKg`. El volumen usa carga externa × reps; carga cero
+es una observación válida para maxLoad, pero no para e1RM. Epley reutiliza
+`analytics.math` (carga positiva y 1–20 reps); sin candidato elegible devuelve null.
+Los números se presentan con precisión de dos decimales, sin persistir métricas.
+
+La metadata procede del snapshot COMPLETED más reciente **dentro del rango y con
+series**; desempata por session id DESC y posición/id del snapshot ASC. No consulta
+el catálogo ni la plantilla actuales. Sin rendimiento devuelve 200 con
+`exercise: null` y `buckets: []`; una referencia de origen null no se reconstruye
+mediante slug. CANCELLED, IN_PROGRESS y otros usuarios quedan excluidos.
+
+Tres SELECTs parametrizados en RepeatableRead obtienen agregados, como máximo
+20 candidatos e1RM por semana y metadata. Las pruebas PostgreSQL verifican
+precisión, aislamiento, fronteras timezone/DST, consistencia concurrente y plan
+real. Se mantienen las ocho migraciones e índices existentes.
 
 ## Calidad y build
 
