@@ -13,7 +13,7 @@ export interface TrendSessionFixture {
   sets: { loadKg: string; reps: number }[];
 }
 // Independent in-memory oracle for HTTP/service tests; real SQL is tested separately.
-function localMonday(instant: Date, timezone: string): string {
+export function localMonday(instant: Date, timezone: string): string {
   const parts = new Intl.DateTimeFormat('en-US', {
     timeZone: timezone,
     year: 'numeric',

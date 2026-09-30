@@ -68,6 +68,8 @@ generados.
   máximo actual según completedAt y setId, no la repetición más reciente.
 - Los agregados temporales de entrenamiento definen explícitamente su timezone
   y usan startedAt de sesiones COMPLETED; los agregados semanales no se persisten.
+  Las tendencias por ejercicio requieren SetEntry real; una occurrence sin series
+  no es rendimiento. Reutilizar la fórmula e1RM centralizada en analytics.math.
 
 ## Seguridad
 

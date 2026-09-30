@@ -2,6 +2,8 @@ import {
   BadRequestException,
   Controller,
   Get,
+  Param,
+  ParseUUIDPipe,
   Query,
   UseGuards,
 } from '@nestjs/common';
@@ -17,6 +19,25 @@ import { TrainingTrendsService } from './training-trends.service';
 @UseGuards(AccessTokenGuard, TrainingTrendsInputGuard)
 export class TrainingTrendsController {
   constructor(private readonly trends: TrainingTrendsService) {}
+
+  @Get('exercises/:exerciseId/weekly')
+  async exerciseWeekly(
+    @CurrentUser() principal: AccessPrincipal,
+    @Param('exerciseId', new ParseUUIDPipe()) exerciseId: string,
+    @Query() query: WeeklyTrainingTrendsQueryDto,
+  ) {
+    try {
+      return await this.trends.getExerciseWeeklyTrends(
+        principal.userId,
+        exerciseId,
+        query,
+      );
+    } catch (error: unknown) {
+      if (error instanceof InvalidTrainingTrendsQueryError)
+        throw new BadRequestException(error.message);
+      throw error;
+    }
+  }
 
   @Get('weekly')
   async weekly(
