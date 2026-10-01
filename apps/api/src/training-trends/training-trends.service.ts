@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { isUUID } from 'class-validator';
+import { MuscleGroup } from '../generated/prisma/enums';
 import {
   calculateEstimated1RM,
   roundMetric,
@@ -10,6 +11,8 @@ import { TrainingTrendsRepository } from './training-trends.repository';
 import { normalizeWeeklyTrainingTrends } from './training-trends.validation';
 import type {
   PublicExerciseWeeklyTrends,
+  PublicMuscleGroupWeeklyBucket,
+  PublicMuscleGroupWeeklyTrends,
   PublicWeeklyTrainingTrends,
   WeeklyTrainingTrendsInput,
 } from './training-trends.types';
@@ -24,6 +27,56 @@ function count(value: string): number {
 @Injectable()
 export class TrainingTrendsService {
   constructor(private readonly repository: TrainingTrendsRepository) {}
+
+  async getMuscleGroupWeeklyTrends(
+    userId: string,
+    input: WeeklyTrainingTrendsInput,
+  ): Promise<PublicMuscleGroupWeeklyTrends> {
+    const query = normalizeWeeklyTrainingTrends(userId, input);
+    const rows = await this.repository.findMuscleGroupWeeklyTrends(
+      userId,
+      query,
+    );
+    try {
+      const buckets = new Map<string, PublicMuscleGroupWeeklyBucket>();
+      for (const row of rows) {
+        const muscleGroup = Object.values(MuscleGroup).find(
+          (value) => value === row.muscleGroup,
+        );
+        if (muscleGroup === undefined)
+          throw new TrainingTrendsPersistenceError();
+        const bucket = buckets.get(row.weekStart) ?? {
+          weekStart: row.weekStart,
+          muscleGroups: [],
+        };
+        bucket.muscleGroups.push({
+          muscleGroup,
+          completedWorkouts: count(row.completedWorkouts),
+          completedSets: count(row.completedSets),
+          totalReps: count(row.totalReps),
+          totalVolumeKg: roundMetric(row.totalVolumeKg),
+        });
+        buckets.set(row.weekStart, bucket);
+      }
+      // ASCII ordering matches SQL COLLATE C, independent of process locale or enum order.
+      const compare = (a: string, b: string) => (a < b ? -1 : a > b ? 1 : 0);
+      return {
+        timezone: query.timezone,
+        from: query.from.toISOString(),
+        to: query.to.toISOString(),
+        buckets: [...buckets.values()]
+          .sort((a, b) => compare(a.weekStart, b.weekStart))
+          .map((bucket) => ({
+            weekStart: bucket.weekStart,
+            muscleGroups: bucket.muscleGroups.sort((a, b) =>
+              compare(a.muscleGroup, b.muscleGroup),
+            ),
+          })),
+      };
+    } catch {
+      throw new TrainingTrendsPersistenceError();
+    }
+  }
 
   async getExerciseWeeklyTrends(
     userId: string,

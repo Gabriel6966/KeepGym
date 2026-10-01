@@ -70,6 +70,8 @@ generados.
   y usan startedAt de sesiones COMPLETED; los agregados semanales no se persisten.
   Las tendencias por ejercicio requieren SetEntry real; una occurrence sin series
   no es rendimiento. Reutilizar la fórmula e1RM centralizada en analytics.math.
+  Los agregados musculares atribuyen cada SetEntry únicamente al primaryMuscle
+  del snapshot histórico, sin duplicarlo entre secondaryMuscles.
 
 ## Seguridad
 

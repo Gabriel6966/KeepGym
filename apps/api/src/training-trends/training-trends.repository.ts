@@ -7,6 +7,7 @@ import type {
   ExerciseTrendSnapshot,
   ExerciseWeeklyTrendsData,
   ExerciseWeeklyTrendsRecord,
+  MuscleGroupWeeklyTrendsRecord,
   WeeklyEstimated1RMCandidate,
   WeeklyTrainingTrendsQuery,
   WeeklyTrainingTrendsRecord,
@@ -31,6 +32,34 @@ function exerciseScope(
 @Injectable()
 export class TrainingTrendsRepository {
   constructor(private readonly prisma: PrismaService) {}
+
+  async findMuscleGroupWeeklyTrends(
+    userId: string,
+    query: WeeklyTrainingTrendsQuery,
+  ): Promise<MuscleGroupWeeklyTrendsRecord[]> {
+    try {
+      // One statement gives a consistent read. Each set belongs only to its
+      // snapshot's primary muscle; no secondary expansion or mutable catalog join.
+      return await this.prisma.$queryRaw<
+        MuscleGroupWeeklyTrendsRecord[]
+      >(Prisma.sql`
+        SELECT ${localWeek(query.timezone)} AS "weekStart",
+          e.primary_muscle::text COLLATE "C" AS "muscleGroup",
+          COUNT(DISTINCT w.id)::text AS "completedWorkouts",
+          COUNT(s.id)::text AS "completedSets",
+          SUM(s.reps)::text AS "totalReps",
+          SUM(s.load_kg * s.reps)::text AS "totalVolumeKg"
+        FROM workout_sessions w
+        JOIN workout_session_exercises e ON e.workout_session_id = w.id
+        JOIN set_entries s ON s.workout_session_exercise_id = e.id
+        WHERE w.user_id = ${userId}::uuid AND w.status = 'COMPLETED'
+          AND w.started_at >= ${query.from.toISOString()}::timestamptz
+          AND w.started_at <= ${query.to.toISOString()}::timestamptz
+        GROUP BY 1, 2 ORDER BY 1 ASC, 2 ASC`);
+    } catch {
+      throw new TrainingTrendsPersistenceError();
+    }
+  }
 
   async findWeeklyTrends(
     userId: string,

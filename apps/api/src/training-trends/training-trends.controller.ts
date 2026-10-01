@@ -20,6 +20,23 @@ import { TrainingTrendsService } from './training-trends.service';
 export class TrainingTrendsController {
   constructor(private readonly trends: TrainingTrendsService) {}
 
+  @Get('muscle-groups/weekly')
+  async muscleGroupsWeekly(
+    @CurrentUser() principal: AccessPrincipal,
+    @Query() query: WeeklyTrainingTrendsQueryDto,
+  ) {
+    try {
+      return await this.trends.getMuscleGroupWeeklyTrends(
+        principal.userId,
+        query,
+      );
+    } catch (error: unknown) {
+      if (error instanceof InvalidTrainingTrendsQueryError)
+        throw new BadRequestException(error.message);
+      throw error;
+    }
+  }
+
   @Get('exercises/:exerciseId/weekly')
   async exerciseWeekly(
     @CurrentUser() principal: AccessPrincipal,

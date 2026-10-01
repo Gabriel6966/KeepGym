@@ -75,3 +75,27 @@ export interface PublicExerciseWeeklyTrends extends PublicWeeklyTrainingTrends {
   exercise: ExerciseTrendSnapshot | null;
   buckets: PublicExerciseWeeklyBucket[];
 }
+
+// Raw enum text is checked against MuscleGroup at the public boundary.
+export interface MuscleGroupWeeklyTrendsRecord extends WeeklyTrainingTrendsRecord {
+  muscleGroup: string;
+}
+
+export interface PublicMuscleGroupMetrics extends Omit<
+  PublicWeeklyTrainingBucket,
+  'weekStart'
+> {
+  muscleGroup: MuscleGroup;
+}
+
+export interface PublicMuscleGroupWeeklyBucket {
+  weekStart: string;
+  muscleGroups: PublicMuscleGroupMetrics[];
+}
+
+export interface PublicMuscleGroupWeeklyTrends extends Omit<
+  PublicWeeklyTrainingTrends,
+  'buckets'
+> {
+  buckets: PublicMuscleGroupWeeklyBucket[];
+}
