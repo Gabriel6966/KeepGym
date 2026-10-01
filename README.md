@@ -652,6 +652,37 @@ Tres SELECTs parametrizados en RepeatableRead obtienen agregados, como máximo
 precisión, aislamiento, fronteras timezone/DST, consistencia concurrente y plan
 real. Se mantienen las ocho migraciones e índices existentes.
 
+### Tendencias semanales por grupo muscular (GYM-018)
+
+`GET /training-trends/muscle-groups/weekly` requiere Bearer access token y las
+mismas queries obligatorias `from`, `to`, `timezone`: timestamps con zona explícita,
+rango inclusivo sobre `WorkoutSession.startedAt`, máximo 730 días y timezone IANA.
+No acepta `muscleGroup`, `status`, `userId`, paginación ni otras queries.
+
+Cada serie real de una sesión propia COMPLETED se atribuye **exclusivamente al
+primaryMuscle del snapshot**. Los secondaryMuscles no reciben sets, reps, volumen
+ni workouts: no hay weighting ni doble conteo. Cambiar el catálogo o la plantilla
+actual no cambia esa atribución histórica, incluso si sourceExerciseId es null.
+
+Devuelve `timezone`, límites normalizados a UTC y `buckets`, cada uno con
+`weekStart` y `muscleGroups`. Cada grupo contiene únicamente `muscleGroup`,
+`completedWorkouts`, `completedSets`, `totalReps` y `totalVolumeKg`. Dos ejercicios
+del mismo grupo en la misma sesión cuentan un workout, pero todas sus series.
+Una occurrence sin series no contribuye; carga cero sí cuenta sets/reps/workout,
+con volumen externo cero. No se incluyen CANCELLED ni IN_PROGRESS.
+
+Las semanas comienzan el lunes en la timezone solicitada; `weekStart` es la fecha
+local `YYYY-MM-DD`. Buckets ASC y grupos alfabéticos por valor enum ASCII
+(BACK antes de CHEST), independientemente del orden del enum PostgreSQL.
+La salida es sparse: no se fabrican semanas ni grupos sin actividad; sin datos
+devuelve 200 con `buckets: []`.
+
+Una única consulta parametrizada agrupa NUMERIC en PostgreSQL y usa
+`COUNT(DISTINCT session.id)`. El servicio valida el enum y presenta volumen como
+número redondeado a dos decimales. Las pruebas verifican el SELECT único, plan
+real, snapshots, ownership, límite del lunes/DST, Decimal y rutas existentes.
+No se persisten métricas ni se añaden índices, migraciones o dependencias.
+
 ## Calidad y build
 
 Ejecuta desde la raíz antes de cerrar cualquier ticket:
