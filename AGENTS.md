@@ -75,6 +75,9 @@ generados.
   Las comparaciones usan periodos de calendario en la timezone explícita, con
   intervalos [inicio, fin) y límites locales independientes de DST. El porcentaje
   con base cero es null; los cambios se describen sin interpretación cualitativa.
+- La consistencia deriva de WorkoutSession COMPLETED, incluso sin SetEntry.
+  Las rachas operan sobre semanas locales de calendario dentro del rango, no
+  diferencias de horas UTC, y no implican calidad del entrenamiento.
 
 ## Seguridad
 

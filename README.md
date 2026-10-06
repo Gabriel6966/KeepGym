@@ -708,6 +708,33 @@ usa aritmética fija exacta antes de convertir a números JSON. No persiste mét
 no añade migración y reutiliza los índices existentes. El formato de fechas de
 los dos periodos y sus límites requiere años entre 0001 y 9999.
 
+## Consistencia y rachas semanales (GYM-020)
+
+`GET /training-consistency/weekly` requiere Bearer access token y exactamente
+`fromWeekStart`, `toWeekStart` y `timezone`. Las fechas son lunes locales reales
+`YYYY-MM-DD`; la zona es IANA, por ejemplo `Europe/Madrid`. El rango incluye ambos
+lunes como semanas completas y admite hasta **104 semanas**. No hay paginación,
+periodo implícito ni restricción sobre semanas futuras.
+
+La única fuente es `WorkoutSession` en estado `COMPLETED`, según `startedAt`.
+Cuenta también workouts sin ejercicios/series; no consulta SetEntry. Dos workouts
+el mismo día local cuentan como dos `completedWorkouts`, pero un solo `activeDay`.
+`activeWeeks` cuenta semanas con actividad y `totalWeeks` incluye las vacías.
+
+`longestWeeklyStreak` es la mayor secuencia de semanas activas consecutivas dentro
+del rango. `endingWeeklyStreak` termina exactamente en `toWeekStart`: si esa
+semana está vacía, vale cero. Ninguna racha se extiende fuera del rango. No existe
+semántica de “racha actual”, periodo de gracia, racha diaria, score ni juicio de
+calidad del entrenamiento.
+
+Los límites son `[lunes inicial 00:00 local, lunes posterior al final 00:00 local)`.
+PostgreSQL resuelve cada medianoche con IANA/DST; la aritmética de rachas usa solo
+fechas de calendario, no diferencias entre instantes UTC. Sin actividad devuelve
+los cinco indicadores de actividad/rachas a cero y conserva `totalWeeks`.
+
+Una consulta agregada devuelve como máximo 104 semanas activas; no se persisten
+rachas ni métricas, no se añaden tablas/índices y se mantienen ocho migraciones.
+
 ## Calidad y build
 
 Ejecuta desde la raíz antes de cerrar cualquier ticket:
