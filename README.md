@@ -735,6 +735,32 @@ los cinco indicadores de actividad/rachas a cero y conserva `totalWeeks`.
 Una consulta agregada devuelve como máximo 104 semanas activas; no se persisten
 rachas ni métricas, no se añaden tablas/índices y se mantienen ocho migraciones.
 
+## Duración semanal de entrenamientos (GYM-021)
+
+`GET /training-duration/weekly` requiere Bearer access token y exactamente
+`from`, `to`, `timezone`, con el mismo contrato de TrainingTrends: timestamps
+RFC3339 con timezone explícita, límites inclusivos, rango máximo de 730 días y
+zona IANA. Solo incluye `WorkoutSession` del usuario en estado `COMPLETED`,
+también cuando no contiene ejercicios o series.
+
+La duración es exclusivamente `endedAt - startedAt`, en segundos reales entre
+instantes. No estima tiempo activo, pausas ni descansos. `startedAt` determina
+tanto la inclusión en el rango como la semana local (lunes, `YYYY-MM-DD`). Una
+sesión que empieza dentro y acaba fuera se incluye completa; una que empieza
+antes se excluye aunque termine dentro. Nunca se reparte duración entre semanas.
+
+La timezone/DST afecta al bucket de calendario, no al tiempo transcurrido. Se
+devuelven `summary` y `buckets` semanales ordenados, sin semanas vacías, con
+`completedWorkouts`, `totalDurationSeconds` y `averageDurationSeconds`. La media
+global divide el total por los workouts, no promedia medias semanales. Los números
+JSON conservan hasta tres decimales, con redondeo final desde aritmética exacta.
+Sin datos: conteo y total cero, media `null`, `buckets: []`. Duración cero es válida;
+no hay máximo artificial. Una sesión completada sin `endedAt` o con duración
+negativa hace fallar la lectura con error sanitizado; no se fabrica ni omite tiempo.
+
+Una única consulta agregada lee WorkoutSession, sin joins a SetEntry. No se
+persisten duraciones ni se modifica schema, índices o las ocho migraciones.
+
 ## Calidad y build
 
 Ejecuta desde la raíz antes de cerrar cualquier ticket:

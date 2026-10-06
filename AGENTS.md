@@ -78,6 +78,10 @@ generados.
 - La consistencia deriva de WorkoutSession COMPLETED, incluso sin SetEntry.
   Las rachas operan sobre semanas locales de calendario dentro del rango, no
   diferencias de horas UTC, y no implican calidad del entrenamiento.
+- La duración deriva de startedAt/endedAt históricos: resta instantes reales,
+  mientras la agrupación usa el calendario local del inicio. No inferir tiempo
+  activo ni descansos, no repartir sesiones entre buckets ni persistir duración
+  derivada. Rechazar invariantes temporales corruptas sin inventar u omitir datos.
 
 ## Seguridad
 
