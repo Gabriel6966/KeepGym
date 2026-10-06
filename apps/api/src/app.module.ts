@@ -17,6 +17,7 @@ import { BodyMeasurementsModule } from './body-measurements/body-measurements.mo
 import { BodyAnalyticsModule } from './body-analytics/body-analytics.module';
 import { TrainingTrendsModule } from './training-trends/training-trends.module';
 import { TrainingConsistencyModule } from './training-consistency/training-consistency.module';
+import { TrainingDurationModule } from './training-duration/training-duration.module';
 
 @Module({
   imports: [
@@ -39,6 +40,7 @@ import { TrainingConsistencyModule } from './training-consistency/training-consi
     BodyAnalyticsModule,
     TrainingTrendsModule,
     TrainingConsistencyModule,
+    TrainingDurationModule,
   ],
   controllers: [HealthController],
   providers: [
