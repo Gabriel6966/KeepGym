@@ -9,6 +9,7 @@ import type {
   ExerciseWeeklyTrendsRecord,
   MuscleGroupWeeklyTrendsRecord,
   WeeklyEstimated1RMCandidate,
+  WeeklyComparisonQuery,
   WeeklyTrainingTrendsQuery,
   WeeklyTrainingTrendsRecord,
 } from './training-trends.types';
@@ -32,6 +33,43 @@ function exerciseScope(
 @Injectable()
 export class TrainingTrendsRepository {
   constructor(private readonly prisma: PrismaService) {}
+
+  async findWeeklyComparison(
+    userId: string,
+    query: WeeklyComparisonQuery,
+  ): Promise<WeeklyTrainingTrendsRecord[]> {
+    try {
+      // One statement, one snapshot. Date +/- 7 means calendar days BEFORE each
+      // midnight is converted to an instant: DST weeks need not last 168 hours.
+      return await this.prisma.$queryRaw<
+        WeeklyTrainingTrendsRecord[]
+      >(Prisma.sql`
+        WITH local_week AS (
+          SELECT ${query.weekStart}::date AS monday, ${query.timezone}::text AS zone
+        ), boundaries AS (
+          SELECT monday,
+            (monday - 7)::timestamp AT TIME ZONE zone AS previous_start,
+            monday::timestamp AT TIME ZONE zone AS current_start,
+            (monday + 7)::timestamp AT TIME ZONE zone AS current_end
+          FROM local_week
+        )
+        SELECT to_char(CASE WHEN w.started_at < b.current_start
+            THEN b.monday - 7 ELSE b.monday END, 'YYYY-MM-DD') AS "weekStart",
+          COUNT(DISTINCT w.id)::text AS "completedWorkouts",
+          COUNT(s.id)::text AS "completedSets",
+          COALESCE(SUM(s.reps), 0)::text AS "totalReps",
+          COALESCE(SUM(s.load_kg * s.reps), 0)::text AS "totalVolumeKg"
+        FROM boundaries b
+        JOIN workout_sessions w ON w.user_id = ${userId}::uuid
+          AND w.status = 'COMPLETED'
+          AND w.started_at >= b.previous_start AND w.started_at < b.current_end
+        LEFT JOIN workout_session_exercises e ON e.workout_session_id = w.id
+        LEFT JOIN set_entries s ON s.workout_session_exercise_id = e.id
+        GROUP BY 1 ORDER BY 1 ASC`);
+    } catch {
+      throw new TrainingTrendsPersistenceError();
+    }
+  }
 
   async findMuscleGroupWeeklyTrends(
     userId: string,

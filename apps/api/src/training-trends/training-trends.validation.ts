@@ -2,11 +2,51 @@ import { isUUID } from 'class-validator';
 import { historyTimestamp } from '../history/history.validation';
 import { InvalidTrainingTrendsQueryError } from './errors/invalid-training-trends-query.error';
 import type {
+  WeeklyComparisonInput,
+  WeeklyComparisonQuery,
   WeeklyTrainingTrendsInput,
   WeeklyTrainingTrendsQuery,
 } from './training-trends.types';
 
 export const MAX_TRAINING_TRENDS_RANGE_MS = 730 * 24 * 60 * 60 * 1000;
+
+export function normalizeWeeklyComparison(
+  userId: string,
+  input: WeeklyComparisonInput,
+): WeeklyComparisonQuery {
+  if (typeof userId !== 'string' || !isUUID(userId))
+    throw new InvalidTrainingTrendsQueryError(
+      'User identifier must be a UUID.',
+    );
+  const value = input.weekStart;
+  const date = new Date(`${value}T00:00:00Z`);
+  if (
+    typeof value !== 'string' ||
+    !/^\d{4}-\d{2}-\d{2}$/.test(value) ||
+    !Number.isFinite(date.getTime()) ||
+    date.toISOString().slice(0, 10) !== value ||
+    date.getUTCFullYear() < 1 ||
+    date.getUTCDay() !== 1
+  )
+    throw new InvalidTrainingTrendsQueryError(
+      'weekStart must be a real Monday date in YYYY-MM-DD format.',
+    );
+  // UTC is only a calendar arithmetic carrier, NOT the requested week instant.
+  // PostgreSQL converts each local midnight independently using the IANA zone.
+  const previous = new Date(date);
+  previous.setUTCDate(previous.getUTCDate() - 7);
+  const next = new Date(date);
+  next.setUTCDate(next.getUTCDate() + 7);
+  if (previous.getUTCFullYear() < 1 || next.getUTCFullYear() > 9999)
+    throw new InvalidTrainingTrendsQueryError(
+      'Adjacent week boundaries must remain within years 0001 through 9999.',
+    );
+  return {
+    weekStart: value,
+    previousWeekStart: previous.toISOString().slice(0, 10),
+    timezone: normalizeTrainingTimezone(input.timezone),
+  };
+}
 
 export function normalizeTrainingTimezone(value: unknown): string {
   if (

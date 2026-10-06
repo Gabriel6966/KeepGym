@@ -683,6 +683,31 @@ número redondeado a dos decimales. Las pruebas verifican el SELECT único, plan
 real, snapshots, ownership, límite del lunes/DST, Decimal y rutas existentes.
 No se persisten métricas ni se añaden índices, migraciones o dependencias.
 
+### Comparación semanal (GYM-019)
+
+`GET /training-trends/weekly-comparison?weekStart=2026-09-28&timezone=Europe/Madrid`
+requiere Bearer access token y únicamente esos dos parámetros. `weekStart` es
+una fecha real `YYYY-MM-DD` que debe ser lunes local, no un timestamp. La semana
+anterior se deriva automáticamente restando siete días de calendario.
+
+Devuelve `previous`, `current` y `changes` para workouts completados, series,
+repeticiones y volumen externo en kg. Solo cuenta sesiones `COMPLETED` del
+usuario según `startedAt`, incluidos workouts sin series. Ambos periodos se
+devuelven siempre, con ceros si están vacíos; a diferencia de `/weekly`, esta
+respuesta no es sparse. Se permiten semanas futuras.
+
+Los límites son medianoches locales `[lunes, lunes siguiente)`, convertidas
+individualmente con la timezone IANA: una semana DST puede durar 167 o 169 horas.
+`delta = current - previous`; `percentageChange = delta / previous * 100`,
+redondeado a dos decimales, y **null si previous es cero**, también en `0 → 0`.
+Una caída desde un valor positivo a cero devuelve `-100`. No hay interpretación
+de mejora/empeoramiento ni recomendaciones. La carga corporal no se estima.
+
+Una consulta parametrizada agrega los dos periodos con NUMERIC; la comparación
+usa aritmética fija exacta antes de convertir a números JSON. No persiste métricas,
+no añade migración y reutiliza los índices existentes. El formato de fechas de
+los dos periodos y sus límites requiere años entre 0001 y 9999.
+
 ## Calidad y build
 
 Ejecuta desde la raíz antes de cerrar cualquier ticket:

@@ -11,6 +11,7 @@ import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { AccessTokenGuard } from '../auth/guards/access-token.guard';
 import type { AccessPrincipal } from '../auth/types/auth.types';
 import { WeeklyTrainingTrendsQueryDto } from './dto/weekly-training-trends-query.dto';
+import { WeeklyComparisonQueryDto } from './dto/weekly-comparison-query.dto';
 import { InvalidTrainingTrendsQueryError } from './errors/invalid-training-trends-query.error';
 import { TrainingTrendsInputGuard } from './guards/training-trends-input.guard';
 import { TrainingTrendsService } from './training-trends.service';
@@ -19,6 +20,20 @@ import { TrainingTrendsService } from './training-trends.service';
 @UseGuards(AccessTokenGuard, TrainingTrendsInputGuard)
 export class TrainingTrendsController {
   constructor(private readonly trends: TrainingTrendsService) {}
+
+  @Get('weekly-comparison')
+  async weeklyComparison(
+    @CurrentUser() principal: AccessPrincipal,
+    @Query() query: WeeklyComparisonQueryDto,
+  ) {
+    try {
+      return await this.trends.getWeeklyComparison(principal.userId, query);
+    } catch (error: unknown) {
+      if (error instanceof InvalidTrainingTrendsQueryError)
+        throw new BadRequestException(error.message);
+      throw error;
+    }
+  }
 
   @Get('muscle-groups/weekly')
   async muscleGroupsWeekly(
