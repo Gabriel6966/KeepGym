@@ -10,6 +10,30 @@ export interface WeeklyTrainingTrendsInput {
   timezone: string;
 }
 
+export interface WeeklyComparisonInput {
+  weekStart: string;
+  timezone: string;
+}
+
+export interface WeeklyComparisonQuery extends WeeklyComparisonInput {
+  previousWeekStart: string;
+}
+
+export interface PublicMetricComparison {
+  delta: number;
+  percentageChange: number | null;
+}
+
+export interface PublicWeeklyComparison {
+  timezone: string;
+  previous: PublicWeeklyTrainingBucket;
+  current: PublicWeeklyTrainingBucket;
+  changes: Record<
+    'completedWorkouts' | 'completedSets' | 'totalReps' | 'totalVolumeKg',
+    PublicMetricComparison
+  >;
+}
+
 export interface WeeklyTrainingTrendsQuery {
   from: Date;
   to: Date;

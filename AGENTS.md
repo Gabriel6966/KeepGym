@@ -72,6 +72,9 @@ generados.
   no es rendimiento. Reutilizar la fórmula e1RM centralizada en analytics.math.
   Los agregados musculares atribuyen cada SetEntry únicamente al primaryMuscle
   del snapshot histórico, sin duplicarlo entre secondaryMuscles.
+  Las comparaciones usan periodos de calendario en la timezone explícita, con
+  intervalos [inicio, fin) y límites locales independientes de DST. El porcentaje
+  con base cero es null; los cambios se describen sin interpretación cualitativa.
 
 ## Seguridad
 

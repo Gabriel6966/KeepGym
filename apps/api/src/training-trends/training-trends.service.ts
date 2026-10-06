@@ -8,12 +8,19 @@ import {
 import { InvalidTrainingTrendsQueryError } from './errors/invalid-training-trends-query.error';
 import { TrainingTrendsPersistenceError } from './errors/training-trends-persistence.error';
 import { TrainingTrendsRepository } from './training-trends.repository';
-import { normalizeWeeklyTrainingTrends } from './training-trends.validation';
+import {
+  normalizeWeeklyComparison,
+  normalizeWeeklyTrainingTrends,
+} from './training-trends.validation';
+import { compareMetric } from './training-trends.math';
 import type {
   PublicExerciseWeeklyTrends,
   PublicMuscleGroupWeeklyBucket,
   PublicMuscleGroupWeeklyTrends,
   PublicWeeklyTrainingTrends,
+  PublicWeeklyComparison,
+  WeeklyComparisonInput,
+  WeeklyTrainingTrendsRecord,
   WeeklyTrainingTrendsInput,
 } from './training-trends.types';
 
@@ -27,6 +34,63 @@ function count(value: string): number {
 @Injectable()
 export class TrainingTrendsService {
   constructor(private readonly repository: TrainingTrendsRepository) {}
+
+  async getWeeklyComparison(
+    userId: string,
+    input: WeeklyComparisonInput,
+  ): Promise<PublicWeeklyComparison> {
+    const query = normalizeWeeklyComparison(userId, input);
+    const rows = await this.repository.findWeeklyComparison(userId, query);
+    try {
+      const periods = new Map<string, WeeklyTrainingTrendsRecord>();
+      for (const weekStart of [query.previousWeekStart, query.weekStart])
+        periods.set(weekStart, {
+          weekStart,
+          completedWorkouts: '0',
+          completedSets: '0',
+          totalReps: '0',
+          totalVolumeKg: '0',
+        });
+      const seen = new Set<string>();
+      for (const row of rows) {
+        if (!periods.has(row.weekStart) || seen.has(row.weekStart))
+          throw new TrainingTrendsPersistenceError();
+        seen.add(row.weekStart);
+        periods.set(row.weekStart, row);
+      }
+      const previous = periods.get(query.previousWeekStart)!;
+      const current = periods.get(query.weekStart)!;
+      const present = (row: WeeklyTrainingTrendsRecord) => ({
+        weekStart: row.weekStart,
+        completedWorkouts: count(row.completedWorkouts),
+        completedSets: count(row.completedSets),
+        totalReps: count(row.totalReps),
+        totalVolumeKg: roundMetric(row.totalVolumeKg),
+      });
+      return {
+        timezone: query.timezone,
+        previous: present(previous),
+        current: present(current),
+        changes: {
+          completedWorkouts: compareMetric(
+            previous.completedWorkouts,
+            current.completedWorkouts,
+          ),
+          completedSets: compareMetric(
+            previous.completedSets,
+            current.completedSets,
+          ),
+          totalReps: compareMetric(previous.totalReps, current.totalReps),
+          totalVolumeKg: compareMetric(
+            previous.totalVolumeKg,
+            current.totalVolumeKg,
+          ),
+        },
+      };
+    } catch {
+      throw new TrainingTrendsPersistenceError();
+    }
+  }
 
   async getMuscleGroupWeeklyTrends(
     userId: string,
