@@ -761,6 +761,34 @@ negativa hace fallar la lectura con error sanitizado; no se fabrica ni omite tie
 Una única consulta agregada lee WorkoutSession, sin joins a SetEntry. No se
 persisten duraciones ni se modifica schema, índices o las ocho migraciones.
 
+## Calendario de actividad (GYM-022)
+
+`GET /training-calendar/days` requiere Bearer access token y exactamente
+`fromDate`, `toDate`, `timezone`. Las fechas locales tienen formato `YYYY-MM-DD`
+(no timestamps), son inclusivas y permiten hasta 366 días de calendario. La
+timezone debe ser IANA; las fechas futuras son válidas. PostgreSQL resuelve el
+intervalo desde medianoche local inicial hasta medianoche del día posterior al
+final, exclusiva, sin asumir días de 24 horas durante DST.
+
+La respuesta contiene `timezone`, `fromDate`, `toDate` y `days`, con una entrada
+por fecha en orden ascendente, incluidos días vacíos con ceros. Cada día expone
+`date`, `completedWorkouts`, `completedSets`, `totalReps`, `totalVolumeKg` y
+`totalDurationSeconds`. Solo contribuyen sesiones `COMPLETED` del usuario;
+también cuentan las que no contienen ejercicios o series.
+
+Todos los datos de una sesión pertenecen a la fecha local de su `startedAt`,
+incluso si cruza medianoche: no se reparten series, volumen ni duración entre
+días. El volumen usa carga externa en kg × reps (dos decimales); bodyweight
+con carga cero conserva series y reps pero aporta volumen cero. La duración
+reutiliza `endedAt - startedAt` entre instantes reales, hasta tres decimales de
+segundo. Duraciones negativas o `endedAt` ausente provocan un error sanitizado,
+sin inventar ni omitir datos.
+
+Una única consulta preagrega por sesión antes de agrupar por día, evitando que
+los joins de series multipliquen workouts o duración. El service completa las
+fechas vacías con helpers DATE-only compartidos. Se reutilizan los índices y las
+ocho migraciones existentes; no se persisten métricas ni se añaden tablas.
+
 ## Calidad y build
 
 Ejecuta desde la raíz antes de cerrar cualquier ticket:
