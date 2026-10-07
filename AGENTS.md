@@ -82,6 +82,10 @@ generados.
   mientras la agrupación usa el calendario local del inicio. No inferir tiempo
   activo ni descansos, no repartir sesiones entre buckets ni persistir duración
   derivada. Rechazar invariantes temporales corruptas sin inventar u omitir datos.
+- El calendario de actividad usa rangos DATE-only locales con timezone explícita
+  y devuelve también fechas vacías con ceros. Cada sesión pertenece íntegramente
+  a la fecha local de startedAt; sus métricas no deben multiplicarse por joins
+  con SetEntry. Los totales diarios son derivados, no persistidos.
 
 ## Seguridad
 
