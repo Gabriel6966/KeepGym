@@ -7,6 +7,7 @@ import type {
   WorkoutHistoryDetailRecord,
   WorkoutHistoryQuery,
   WorkoutHistorySummaryRecord,
+  RecentWorkoutRecord,
 } from '../../src/history/history.types';
 
 export interface OwnedHistory {
@@ -88,9 +89,51 @@ export function historyFixture() {
 
 export class InMemoryHistoryRepository implements Pick<
   HistoryRepository,
-  'findWorkoutHistory' | 'findWorkoutHistoryById' | 'findExerciseHistory'
+  | 'findWorkoutHistory'
+  | 'findWorkoutHistoryById'
+  | 'findExerciseHistory'
+  | 'findRecentCompletedWorkouts'
 > {
   constructor(readonly records: OwnedHistory[]) {}
+
+  async findRecentCompletedWorkouts(
+    userId: string,
+    limit: number,
+  ): Promise<RecentWorkoutRecord[]> {
+    return this.records
+      .filter((r) => r.userId === userId && r.session.status === 'COMPLETED')
+      .map((r) => r.session)
+      .sort(
+        (a, b) =>
+          b.startedAt.getTime() - a.startedAt.getTime() ||
+          b.id.localeCompare(a.id),
+      )
+      .slice(0, limit)
+      .map((session) => {
+        const sets = session.exercises.flatMap((e) => e.sets);
+        return {
+          id: session.id,
+          name: session.name,
+          startedAt: session.startedAt,
+          endedAt: session.endedAt,
+          durationSeconds:
+            session.endedAt === null
+              ? null
+              : String(
+                  (session.endedAt.getTime() - session.startedAt.getTime()) /
+                    1000,
+                ),
+          completedSets: String(sets.length),
+          totalReps: String(sets.reduce((sum, s) => sum + s.reps, 0)),
+          totalVolumeKg: sets
+            .reduce(
+              (sum, s) => sum.plus(s.loadKg.times(s.reps)),
+              new Prisma.Decimal(0),
+            )
+            .toString(),
+        };
+      });
+  }
 
   private matching(userId: string, query: WorkoutHistoryQuery) {
     return this.records
