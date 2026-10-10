@@ -6,7 +6,19 @@ import {
   type HistoryQuery,
   type WorkoutHistoryQueryInput,
   type WorkoutHistoryQuery,
+  type RecentWorkoutsQueryInput,
 } from './history.types';
+
+export function normalizeRecentWorkoutsLimit(
+  input: RecentWorkoutsQueryInput,
+): number {
+  const limit = input.limit === undefined ? 5 : input.limit;
+  if (!Number.isInteger(limit) || limit < 1 || limit > 20)
+    throw new InvalidHistoryQueryError(
+      'limit must be an integer between 1 and 20.',
+    );
+  return limit;
+}
 
 // Match the database's millisecond precision. Reject rollover dates, local times,
 // leap seconds and excess precision rather than silently changing a boundary.

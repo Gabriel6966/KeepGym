@@ -89,6 +89,8 @@ generados.
 - Dashboard compone los servicios públicos de los dominios, sin duplicar SQL
   ni acceder directamente a sus repositories. Sus resúmenes son factuales;
   los fallos de subservicios no se convierten en ceros o resultados parciales.
+  La actividad reciente se compone desde HistoryService, con orden histórico
+  determinista y sin excluir sesiones COMPLETED que no tengan series.
 
 ## Seguridad
 

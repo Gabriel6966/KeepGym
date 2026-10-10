@@ -789,7 +789,25 @@ los joins de series multipliquen workouts o duración. El service completa las
 fechas vacías con helpers DATE-only compartidos. Se reutilizan los índices y las
 ocho migraciones existentes; no se persisten métricas ni se añaden tablas.
 
-## Resumen de dashboard (GYM-023)
+## Actividad reciente de workouts (GYM-024)
+
+`GET /history/recent-workouts` requiere Bearer access token. Solo admite `limit`
+entero entre 1 y 20, por defecto 5; devuelve `{ items: [...] }`, sin paginación.
+Solo incluye sesiones propias `COMPLETED`, en el mismo orden determinista que
+History: `startedAt DESC, id DESC`. Sin actividad devuelve `items: []`.
+
+Cada item contiene `id`, `name` snapshot, `startedAt`, `endedAt`,
+`durationSeconds`, `completedSets`, `totalReps` y `totalVolumeKg`. La duración
+es `endedAt - startedAt` en segundos (hasta 3 decimales); duración cero es válida,
+pero endedAt nulo o anterior al inicio provoca un error sanitizado. Los totales
+de sets/reps/volumen externo (`loadKg × reps`, hasta 2 decimales) proceden de
+SetEntry. Las sesiones completadas sin series permanecen, con totales cero.
+Renombrar/archivar la plantilla o editar el catálogo no reconstruye el pasado.
+
+Una única consulta selecciona primero las N sesiones y agrega sus series sin
+multiplicar workouts ni duración. Reutiliza índices existentes; sin migración.
+
+## Resumen de dashboard (GYM-023 / GYM-024)
 
 `GET /dashboard/summary` requiere Bearer access token y exactamente `weekStart`
 y `timezone`. `weekStart` es un lunes local real en formato `YYYY-MM-DD`, no un
@@ -809,13 +827,17 @@ Dashboard compone servicios de dominio, sin repository ni SQL propios:
   desde `weekStart - 11 semanas` hasta `weekStart`. Por ejemplo, el lunes
   `2026-10-05` deriva `2026-07-20`. Expone semanas activas, racha máxima y racha
   que termina exactamente en la semana seleccionada, sin gracia de semana actual.
+- `recentWorkouts`: reutiliza HistoryService para los cinco últimos `COMPLETED`
+  del usuario, con la misma representación de `/history/recent-workouts`.
+  Es actividad reciente general, independiente de `weekStart` (también si se
+  selecciona una semana futura). Dashboard no admite `recentLimit`.
 
-Los tres dominios mantienen ownership y política `COMPLETED`, incluidas sesiones
-sin series. Las lecturas se lanzan en paralelo: tres SELECTs fijos, sin N+1 ni
+Los cuatro dominios mantienen ownership y política `COMPLETED`, incluidas sesiones
+sin series. Las lecturas se lanzan en paralelo: cuatro SELECTs fijos, sin N+1 ni
 transacción compartida entre dominios. Con escrituras concurrentes pueden reflejar
 instantes ligeramente distintos; un fallo no se sustituye por ceros ni resultados
-parciales. El resumen es factual/read-only, sin body summary, PRs, workouts
-recientes, recomendaciones ni interpretación de calidad. No modifica schema,
+parciales, tampoco ante un fallo de History. El resumen es factual/read-only, sin
+body summary, PRs, recomendaciones ni interpretación de calidad. No modifica schema,
 índices ni las ocho migraciones.
 
 ## Calidad y build

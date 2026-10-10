@@ -1,4 +1,9 @@
 import { Injectable } from '@nestjs/common';
+import { roundMetric } from '../analytics/analytics.math';
+import {
+  roundDurationSeconds,
+  sumDurationSeconds,
+} from '../training-duration/training-duration.math';
 import type {
   PublicSetEntry,
   PublicWorkoutSessionExercise,
@@ -10,6 +15,7 @@ import {
   normalizeHistoryQuery,
   normalizeWorkoutHistoryQuery,
   validateHistoryIds,
+  normalizeRecentWorkoutsLimit,
 } from './history.validation';
 import type {
   HistoryQueryInput,
@@ -21,6 +27,8 @@ import type {
   WorkoutHistorySummary,
   WorkoutHistoryDetail,
   ExerciseHistoryEntry,
+  RecentWorkoutsQueryInput,
+  PublicRecentWorkouts,
 } from './history.types';
 
 function historicalStatus(status: string): HistoryStatus {
@@ -75,6 +83,53 @@ function pageResult<T>(
 @Injectable()
 export class HistoryService {
   constructor(private readonly repository: HistoryRepository) {}
+
+  async getRecentCompletedWorkouts(
+    userId: string,
+    input: RecentWorkoutsQueryInput = {},
+  ): Promise<PublicRecentWorkouts> {
+    validateHistoryIds(userId);
+    const limit = normalizeRecentWorkoutsLimit(input);
+    try {
+      const rows = await this.repository.findRecentCompletedWorkouts(
+        userId,
+        limit,
+      );
+      const count = (value: string): number => {
+        if (!/^\d+$/.test(value) || !Number.isSafeInteger(Number(value)))
+          throw new HistoryPersistenceError();
+        return Number(value);
+      };
+      return {
+        items: rows.map((row) => {
+          if (
+            row.endedAt === null ||
+            row.durationSeconds === null ||
+            !Number.isFinite(row.startedAt.getTime()) ||
+            !Number.isFinite(row.endedAt.getTime()) ||
+            row.endedAt < row.startedAt ||
+            !/^\d+(?:\.\d+)?$/.test(row.totalVolumeKg)
+          )
+            throw new HistoryPersistenceError();
+          return {
+            id: row.id,
+            name: row.name,
+            startedAt: row.startedAt,
+            endedAt: row.endedAt,
+            durationSeconds: roundDurationSeconds(
+              sumDurationSeconds([row.durationSeconds]),
+            ),
+            completedSets: count(row.completedSets),
+            totalReps: count(row.totalReps),
+            totalVolumeKg: roundMetric(row.totalVolumeKg),
+          };
+        }),
+      };
+    } catch {
+      // Corrupt historical durations are not omitted, repaired or made clock-dependent.
+      throw new HistoryPersistenceError();
+    }
+  }
 
   async listWorkouts(
     userId: string,

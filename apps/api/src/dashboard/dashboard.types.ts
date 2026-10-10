@@ -1,3 +1,5 @@
+import type { PublicRecentWorkout } from '../history/history.types';
+
 export interface DashboardSummaryInput {
   weekStart: string;
   timezone: string;
@@ -15,6 +17,7 @@ export interface DashboardComparisonMetric {
 }
 
 export interface PublicDashboardSummary extends DashboardSummaryInput {
+  recentWorkouts: PublicRecentWorkout[];
   week: {
     completedWorkouts: number;
     completedSets: number;

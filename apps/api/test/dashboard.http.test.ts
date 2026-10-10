@@ -7,6 +7,7 @@ import type { INestApplication } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { Test } from '@nestjs/testing';
 import { AppModule } from '../src/app.module';
+import { HistoryService } from '../src/history/history.service';
 import { environmentConfig } from '../src/config/environment.config';
 import { configureHttp } from '../src/http/configure-http';
 import { PrismaService } from '../src/prisma/prisma.service';
@@ -40,6 +41,8 @@ before(async () => {
     .useValue(f.trends)
     .overrideProvider(TrainingConsistencyService)
     .useValue(f.consistency)
+    .overrideProvider(HistoryService)
+    .useValue(f.history)
     .compile();
   app = module.createNestApplication({ logger: false });
   configureHttp(app);
@@ -75,7 +78,6 @@ async function get(
     'passwordHash',
     'Prisma',
     'stack',
-    'recentWorkouts',
     'bodyFat',
     'recommendations',
     'score',
@@ -94,6 +96,10 @@ void test('dashboard HTTP requires valid JWT and leaves health available', async
 void test('dashboard HTTP composes exact week, comparison and 12-week consistency without leaking another principal', async () => {
   const result = await get();
   assert.deepEqual(result.week, expectedDashboardWeek);
+  assert.deepEqual(
+    result.recentWorkouts,
+    JSON.parse(JSON.stringify(f.recentData.items)) as unknown,
+  );
   assert.deepEqual(object(result.comparison).totalVolumeKg, {
     previous: 1500,
     delta: 355.75,
@@ -125,9 +131,16 @@ void test('dashboard HTTP rejects missing/duplicate query fields and malformed/u
     { timezone: 'GMT+2' },
     { timezone: '+02:00' },
     { timezone: '' },
-    ...['userId', 'status', 'from', 'to', 'page', 'limit', 'foo'].map(
-      (key) => ({ [key]: '1' }),
-    ),
+    ...[
+      'userId',
+      'status',
+      'from',
+      'to',
+      'page',
+      'limit',
+      'recentLimit',
+      'foo',
+    ].map((key) => ({ [key]: '1' })),
   ])
     await context.test(JSON.stringify(override), async () => {
       await get(new URLSearchParams({ ...input, ...override }), 400);
@@ -135,10 +148,10 @@ void test('dashboard HTTP rejects missing/duplicate query fields and malformed/u
 });
 void test('dashboard HTTP permits future Mondays and preserves zero baseline nulls', async () => {
   const future = { weekStart: '2099-01-05', timezone: 'UTC' };
-  assert.deepEqual(
-    await get(new URLSearchParams(future)),
-    emptyDashboard(future),
-  );
+  assert.deepEqual(await get(new URLSearchParams(future)), {
+    ...emptyDashboard(future),
+    recentWorkouts: JSON.parse(JSON.stringify(f.recentData.items)) as unknown,
+  });
 });
 void test('dashboard HTTP has no write endpoints and refuses GET body selectors', async () => {
   for (const method of ['POST', 'PUT', 'PATCH', 'DELETE']) {
@@ -173,6 +186,16 @@ void test('dashboard HTTP has no write endpoints and refuses GET body selectors'
 });
 void test('dashboard HTTP never replaces a subservice failure or invalid window with zero data', async (context) => {
   context.mock.method(f.calendar, 'getDays', async () => {
+    throw new Error('private SQL');
+  });
+  assert.deepEqual(await get(undefined, 500), {
+    statusCode: 500,
+    message: 'Internal server error',
+  });
+});
+
+void test('dashboard HTTP never hides a History failure as an empty recent feed', async (context) => {
+  context.mock.method(f.history, 'getRecentCompletedWorkouts', async () => {
     throw new Error('private SQL');
   });
   assert.deepEqual(await get(undefined, 500), {

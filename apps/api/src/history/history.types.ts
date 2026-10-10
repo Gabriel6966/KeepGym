@@ -5,6 +5,33 @@ import type {
 } from '../workout-sessions/workout-sessions.types';
 
 export const historyStatuses = ['COMPLETED', 'CANCELLED'] as const;
+export interface RecentWorkoutsQueryInput {
+  limit?: number;
+}
+// NUMERIC/count aggregates remain lossless text until the public boundary.
+export interface RecentWorkoutRecord {
+  id: string;
+  name: string;
+  startedAt: Date;
+  endedAt: Date | null;
+  durationSeconds: string | null;
+  completedSets: string;
+  totalReps: string;
+  totalVolumeKg: string;
+}
+export interface PublicRecentWorkout {
+  id: string;
+  name: string;
+  startedAt: Date;
+  endedAt: Date;
+  durationSeconds: number;
+  completedSets: number;
+  totalReps: number;
+  totalVolumeKg: number;
+}
+export interface PublicRecentWorkouts {
+  items: PublicRecentWorkout[];
+}
 export type HistoryStatus = (typeof historyStatuses)[number];
 export interface HistoryQueryInput {
   status?: HistoryStatus;

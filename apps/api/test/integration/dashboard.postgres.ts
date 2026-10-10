@@ -35,7 +35,7 @@ function string(value: unknown): string {
 const endpoint = '/dashboard/summary';
 type SetFixture = { loadKg: string; reps: number };
 
-void test('Dashboard PostgreSQL HTTP: domain composition, exact selected week, comparison, twelve-week streaks and three fixed reads', async (context) => {
+void test('Dashboard PostgreSQL HTTP: domain composition, exact selected week, comparison, twelve-week streaks and four fixed reads', async (context) => {
   const connectionString = process.env.DATABASE_URL;
   assert.ok(connectionString);
   const db = new PrismaClient({
@@ -81,7 +81,6 @@ void test('Dashboard PostgreSQL HTTP: domain composition, exact selected week, c
         'passwordHash',
         'currentStreak',
         'recommendations',
-        'recentWorkouts',
       ])
         assert.equal(JSON.stringify(result).includes('"' + key + '"'), false);
     }
@@ -189,7 +188,11 @@ void test('Dashboard PostgreSQL HTTP: domain composition, exact selected week, c
       statements.length = 0;
       const result = await summary(override, token);
       const observed = [...statements];
-      assert.equal(observed.length, 3);
+      assert.equal(observed.length, 4);
+      assert.equal(
+        observed.filter((sql) => sql.includes('recent AS MATERIALIZED')).length,
+        1,
+      );
       assert.ok(observed.every((sql) => /^\s*WITH\b/i.test(sql)));
       assert.equal(
         observed.filter((sql) => sql.includes('session_activity')).length,
@@ -211,7 +214,7 @@ void test('Dashboard PostgreSQL HTTP: domain composition, exact selected week, c
       return result;
     };
     await context.test(
-      'empty/future dashboard uses three existing domain SELECTs with zeros, null average and null baseline percentages',
+      'empty/future dashboard uses four domain SELECTs with zeros, null average and null baseline percentages',
       async () => {
         assert.deepEqual(await observe(), emptyDashboard());
         const future = { weekStart: '2099-01-05', timezone: 'UTC' };
@@ -399,11 +402,23 @@ void test('Dashboard PostgreSQL HTTP: domain composition, exact selected week, c
     await context.test(
       'calendar corruption cannot become a partial dashboard: generic error and healthy unaffected scopes',
       async () => {
-        await session(a.id, '2026-12-07T10:00:00Z', -1, sets('80', 8));
+        const corrupt = await session(
+          a.id,
+          '2026-12-07T10:00:00Z',
+          -1,
+          sets('80', 8),
+        );
         assert.deepEqual(
           await summary({ weekStart: '2026-12-07' }, a.token, 500),
           { statusCode: 500, message: 'Internal server error' },
         );
+        // Recent history is all-time: this corrupt recent row also fails other
+        // selected weeks, but never another user's dashboard.
+        await summary({}, a.token, 500);
+        await summary({}, b.token);
+        await db.workoutSession.delete({
+          where: { id: corrupt.id, userId: a.id },
+        });
         assert.deepEqual((await summary()).week, expectedDashboardWeek);
       },
     );
@@ -440,12 +455,19 @@ void test('Dashboard PostgreSQL HTTP: domain composition, exact selected week, c
         for (const method of ['POST', 'PUT', 'PATCH', 'DELETE'])
           await request(endpoint, a.token, method, undefined, 404);
         const future = { weekStart: '2099-01-05', timezone: 'UTC' };
-        assert.deepEqual(await observe(future), emptyDashboard(future));
+        const recent = await request(
+          '/history/recent-workouts?limit=5',
+          a.token,
+        );
+        assert.deepEqual(await observe(future), {
+          ...emptyDashboard(future),
+          recentWorkouts: recent.items,
+        });
       },
     );
     assert.equal(await db.exercise.count(), catalogBefore);
     context.diagnostic(
-      'Dashboard: 3 domain SELECTs per real HTTP request (calendar=1, comparison=1, consistency=1), empty and populated. No Dashboard SQL.',
+      'Dashboard: 4 domain SELECTs per real HTTP request (calendar=1, comparison=1, consistency=1, recentHistory=1), empty and populated. No Dashboard SQL.',
     );
   } finally {
     try {

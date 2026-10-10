@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common';
+import { HistoryService } from '../history/history.service';
 import { sumMetrics } from '../analytics/analytics.math';
 import { iterateCalendarDays } from '../common/calendar-date';
 import { TrainingCalendarService } from '../training-calendar/training-calendar.service';
@@ -33,6 +34,7 @@ export class DashboardService {
     private readonly calendar: TrainingCalendarService,
     private readonly trends: TrainingTrendsService,
     private readonly consistency: TrainingConsistencyService,
+    private readonly history: HistoryService,
   ) {}
 
   async getSummary(
@@ -43,7 +45,7 @@ export class DashboardService {
     try {
       // Independent domain reads, not a cross-domain transactional snapshot.
       // Concurrent writes may become visible at slightly different instants.
-      const [calendar, comparison, consistency] = await Promise.all([
+      const [calendar, comparison, consistency, recent] = await Promise.all([
         this.calendar.getDays(userId, {
           fromDate: query.weekStart,
           toDate: query.toDate,
@@ -58,6 +60,7 @@ export class DashboardService {
           toWeekStart: query.weekStart,
           timezone: query.timezone,
         }),
+        this.history.getRecentCompletedWorkouts(userId, { limit: 5 }),
       ]);
       const dates = [...iterateCalendarDays(query.weekStart, query.toDate)];
       if (
@@ -85,6 +88,7 @@ export class DashboardService {
       return {
         timezone: query.timezone,
         weekStart: query.weekStart,
+        recentWorkouts: recent.items,
         week: {
           completedWorkouts,
           completedSets: sumCounts(

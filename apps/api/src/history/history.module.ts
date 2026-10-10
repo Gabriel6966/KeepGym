@@ -10,5 +10,6 @@ import { HistoryRepository } from './history.repository';
   imports: [AuthModule, PrismaModule],
   controllers: [WorkoutHistoryController, ExerciseHistoryController],
   providers: [HistoryService, HistoryRepository],
+  exports: [HistoryService],
 })
 export class HistoryModule {}

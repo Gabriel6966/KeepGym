@@ -13,6 +13,7 @@ import {
   type WorkoutHistorySummaryRecord,
   type WorkoutHistoryDetailRecord,
   type ExerciseHistoryRecord,
+  type RecentWorkoutRecord,
 } from './history.types';
 
 function sessionWhere(
@@ -31,6 +32,37 @@ function sessionWhere(
 @Injectable()
 export class HistoryRepository {
   constructor(private readonly prisma: PrismaService) {}
+
+  async findRecentCompletedWorkouts(
+    userId: string,
+    limit: number,
+  ): Promise<RecentWorkoutRecord[]> {
+    try {
+      // Bound the historical sessions before aggregating their children. LEFT
+      // JOIN preserves completed sessions with no exercises or no recorded sets.
+      return await this.prisma.$queryRaw<RecentWorkoutRecord[]>(Prisma.sql`
+        WITH recent AS MATERIALIZED (
+          SELECT w.id, w.name, w.started_at, w.ended_at
+          FROM workout_sessions w
+          WHERE w.user_id = ${userId}::uuid AND w.status = 'COMPLETED'
+          ORDER BY w.started_at DESC, w.id DESC
+          LIMIT ${limit}
+        )
+        SELECT r.id, r.name, r.started_at AS "startedAt", r.ended_at AS "endedAt",
+          EXTRACT(EPOCH FROM (r.ended_at - r.started_at))::text AS "durationSeconds",
+          COUNT(s.id)::text AS "completedSets",
+          COALESCE(SUM(s.reps), 0)::text AS "totalReps",
+          COALESCE(SUM(s.load_kg * s.reps), 0)::text AS "totalVolumeKg"
+        FROM recent r
+        LEFT JOIN workout_session_exercises e ON e.workout_session_id = r.id
+        LEFT JOIN set_entries s ON s.workout_session_exercise_id = e.id
+        GROUP BY r.id, r.name, r.started_at, r.ended_at
+        ORDER BY r.started_at DESC, r.id DESC
+      `);
+    } catch {
+      throw new HistoryPersistenceError();
+    }
+  }
 
   async findWorkoutHistory(
     userId: string,

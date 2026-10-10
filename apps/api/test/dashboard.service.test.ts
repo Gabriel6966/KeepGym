@@ -4,6 +4,7 @@ import { randomUUID } from 'node:crypto';
 import { test, type TestContext } from 'node:test';
 import { Test } from '@nestjs/testing';
 import { DashboardService } from '../src/dashboard/dashboard.service';
+import { HistoryService } from '../src/history/history.service';
 import { DashboardReadError } from '../src/dashboard/errors/dashboard-read.error';
 import { InvalidDashboardQueryError } from '../src/dashboard/errors/invalid-dashboard-query.error';
 import { TrainingCalendarService } from '../src/training-calendar/training-calendar.service';
@@ -22,10 +23,12 @@ async function setup(context: TestContext) {
   const f = dashboardServices();
   const calendar = context.mock.method(f.calendar, 'getDays'),
     trends = context.mock.method(f.trends, 'getWeeklyComparison'),
-    consistency = context.mock.method(f.consistency, 'getWeeklyConsistency');
+    consistency = context.mock.method(f.consistency, 'getWeeklyConsistency'),
+    history = context.mock.method(f.history, 'getRecentCompletedWorkouts');
   const module = await Test.createTestingModule({
     providers: [
       DashboardService,
+      { provide: HistoryService, useValue: f.history },
       { provide: TrainingCalendarService, useValue: f.calendar },
       { provide: TrainingTrendsService, useValue: f.trends },
       { provide: TrainingConsistencyService, useValue: f.consistency },
@@ -35,7 +38,7 @@ async function setup(context: TestContext) {
   return {
     ...f,
     service: module.get(DashboardService),
-    calls: { calendar, trends, consistency },
+    calls: { calendar, trends, consistency, history },
   };
 }
 void test('dashboard zero activity retains null average/percentages and twelve calendar weeks', async (context) => {
@@ -54,6 +57,7 @@ void test('dashboard sums seven dense days: 4 workouts, 4 sets, 33 reps, 1855.75
   assert.deepEqual(Object.keys(result).sort(), [
     'comparison',
     'consistency',
+    'recentWorkouts',
     'timezone',
     'week',
     'weekStart',
@@ -110,6 +114,11 @@ void test('dashboard derives exact Monday 2026-07-20 from 2026-10-05 minus 77 ca
     },
   ]);
   assert.deepEqual(f.calls.trends.mock.calls[0]!.arguments, [f.owner, input]);
+  assert.deepEqual(f.calls.history.mock.calls[0]!.arguments, [
+    f.owner,
+    { limit: 5 },
+  ]);
+  assert.deepEqual(result.recentWorkouts, f.recentData.items);
   assert.deepEqual(f.calls.consistency.mock.calls[0]!.arguments, [
     f.owner,
     {
@@ -132,10 +141,10 @@ void test('dashboard derives exact Monday 2026-07-20 from 2026-10-05 minus 77 ca
 void test('dashboard accepts future weeks and canonical timezone without reading the clock', async (context) => {
   const f = await setup(context);
   const future = { weekStart: '2099-01-05', timezone: 'UTC' };
-  assert.deepEqual(
-    await f.service.getSummary(f.owner, future),
-    emptyDashboard(future),
-  );
+  assert.deepEqual(await f.service.getSummary(f.owner, future), {
+    ...emptyDashboard(future),
+    recentWorkouts: f.recentData.items,
+  });
 });
 void test('dashboard rejects invalid inputs and unsupported calendar boundaries before domain calls', async (context) => {
   const f = await setup(context);
@@ -160,7 +169,7 @@ void test('dashboard rejects invalid inputs and unsupported calendar boundaries 
   for (const call of Object.values(f.calls))
     assert.equal(call.mock.calls.length, 0);
 });
-void test('dashboard launches all three independent reads before awaiting results', async (context) => {
+void test('dashboard launches all four independent reads before awaiting results', async (context) => {
   const f = await setup(context);
   let release!: () => void;
   const gate = new Promise<void>((resolve) => {
@@ -177,6 +186,10 @@ void test('dashboard launches all three independent reads before awaiting result
   f.calls.consistency.mock.mockImplementation(async () => {
     await gate;
     return f.consistencyData;
+  });
+  f.calls.history.mock.mockImplementation(async () => {
+    await gate;
+    return f.recentData;
   });
   const pending = f.service.getSummary(f.owner, input);
   try {
