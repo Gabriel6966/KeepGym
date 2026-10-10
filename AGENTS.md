@@ -86,6 +86,9 @@ generados.
   y devuelve también fechas vacías con ceros. Cada sesión pertenece íntegramente
   a la fecha local de startedAt; sus métricas no deben multiplicarse por joins
   con SetEntry. Los totales diarios son derivados, no persistidos.
+- Dashboard compone los servicios públicos de los dominios, sin duplicar SQL
+  ni acceder directamente a sus repositories. Sus resúmenes son factuales;
+  los fallos de subservicios no se convierten en ceros o resultados parciales.
 
 ## Seguridad
 

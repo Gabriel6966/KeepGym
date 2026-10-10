@@ -7,6 +7,7 @@ import {
   estimated1RMScore,
   roundMetric,
   sumSetVolumes,
+  sumMetrics,
 } from '../src/analytics/analytics.math';
 
 for (const [load, reps, expected] of [
@@ -59,4 +60,18 @@ void test('ranking retains unrounded Epley values and exact cross-rep ties', () 
   );
   assert.equal(calculateEstimated1RM(1, 1), calculateEstimated1RM(0.97, 2));
   assert.ok(estimated1RMScore(0.97, 2)!.gt(estimated1RMScore(1, 1)!));
+});
+
+void test('derived metric totals sum Decimal values before public rounding without mutating inputs', () => {
+  const values = Object.freeze([1280, 575.75, 0]);
+  assert.equal(sumMetrics(values), 1855.75);
+  assert.equal(sumMetrics([0.1, 0.2]), 0.3);
+  assert.equal(sumMetrics([]), 0);
+  assert.equal(sumMetrics(['80', 80.5, new Prisma.Decimal('82.25')]), 242.75);
+  assert.equal(
+    sumMetrics(Array.from({ length: 10000 }, () => '82.25')),
+    822500,
+  );
+  assert.deepEqual(values, [1280, 575.75, 0]);
+  assert.throws(() => sumMetrics([Number.MAX_SAFE_INTEGER]), RangeError);
 });

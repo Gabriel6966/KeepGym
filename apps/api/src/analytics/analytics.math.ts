@@ -20,6 +20,16 @@ export function calculateSetVolume(loadKg: MetricValue, reps: number): number {
   return roundMetric(new MetricDecimal(loadKg).mul(reps));
 }
 
+// Sum already-derived metrics exactly, rounding only the public total.
+export function sumMetrics(values: readonly MetricValue[]): number {
+  return roundMetric(
+    values.reduce<Prisma.Decimal>(
+      (total, value) => total.plus(value),
+      new MetricDecimal(0),
+    ),
+  );
+}
+
 export function sumSetVolumes(
   sets: readonly { loadKg: MetricValue; reps: number }[],
 ): number {

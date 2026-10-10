@@ -9,5 +9,6 @@ import { TrainingTrendsRepository } from './training-trends.repository';
   imports: [AuthModule, PrismaModule],
   controllers: [TrainingTrendsController],
   providers: [TrainingTrendsService, TrainingTrendsRepository],
+  exports: [TrainingTrendsService],
 })
 export class TrainingTrendsModule {}

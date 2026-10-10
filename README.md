@@ -789,6 +789,35 @@ los joins de series multipliquen workouts o duración. El service completa las
 fechas vacías con helpers DATE-only compartidos. Se reutilizan los índices y las
 ocho migraciones existentes; no se persisten métricas ni se añaden tablas.
 
+## Resumen de dashboard (GYM-023)
+
+`GET /dashboard/summary` requiere Bearer access token y exactamente `weekStart`
+y `timezone`. `weekStart` es un lunes local real en formato `YYYY-MM-DD`, no un
+timestamp; `timezone` es una zona IANA explícita. Se permiten semanas futuras.
+
+Dashboard compone servicios de dominio, sin repository ni SQL propios:
+
+- `week`: suma los siete días densos de TrainingCalendar, de lunes a domingo.
+  Incluye workouts, sets, reps, volumen externo en kg, días con workouts y
+  duración total/media en segundos. La media divide por workouts, no por días
+  activos; sin workouts es `null`. Conserva dos decimales de volumen y tres de
+  duración, usando los helpers matemáticos existentes.
+- `comparison`: reutiliza la comparación de TrainingTrends contra la semana
+  anterior; expone valores previos, deltas signed y porcentajes. No recalcula
+  porcentajes: una base cero conserva `percentageChange: null`.
+- `consistency`: reutiliza TrainingConsistency durante 12 semanas inclusivas,
+  desde `weekStart - 11 semanas` hasta `weekStart`. Por ejemplo, el lunes
+  `2026-10-05` deriva `2026-07-20`. Expone semanas activas, racha máxima y racha
+  que termina exactamente en la semana seleccionada, sin gracia de semana actual.
+
+Los tres dominios mantienen ownership y política `COMPLETED`, incluidas sesiones
+sin series. Las lecturas se lanzan en paralelo: tres SELECTs fijos, sin N+1 ni
+transacción compartida entre dominios. Con escrituras concurrentes pueden reflejar
+instantes ligeramente distintos; un fallo no se sustituye por ceros ni resultados
+parciales. El resumen es factual/read-only, sin body summary, PRs, workouts
+recientes, recomendaciones ni interpretación de calidad. No modifica schema,
+índices ni las ocho migraciones.
+
 ## Calidad y build
 
 Ejecuta desde la raíz antes de cerrar cualquier ticket:
