@@ -19,6 +19,7 @@ import { TrainingTrendsModule } from './training-trends/training-trends.module';
 import { TrainingConsistencyModule } from './training-consistency/training-consistency.module';
 import { TrainingDurationModule } from './training-duration/training-duration.module';
 import { TrainingCalendarModule } from './training-calendar/training-calendar.module';
+import { DashboardModule } from './dashboard/dashboard.module';
 
 @Module({
   imports: [
@@ -43,6 +44,7 @@ import { TrainingCalendarModule } from './training-calendar/training-calendar.mo
     TrainingConsistencyModule,
     TrainingDurationModule,
     TrainingCalendarModule,
+    DashboardModule,
   ],
   controllers: [HealthController],
   providers: [

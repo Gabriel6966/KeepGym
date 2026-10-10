@@ -9,5 +9,6 @@ import { TrainingConsistencyRepository } from './training-consistency.repository
   imports: [AuthModule, PrismaModule],
   controllers: [TrainingConsistencyController],
   providers: [TrainingConsistencyService, TrainingConsistencyRepository],
+  exports: [TrainingConsistencyService],
 })
 export class TrainingConsistencyModule {}

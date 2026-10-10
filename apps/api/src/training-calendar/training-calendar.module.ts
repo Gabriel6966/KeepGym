@@ -9,5 +9,6 @@ import { TrainingCalendarRepository } from './training-calendar.repository';
   imports: [AuthModule, PrismaModule],
   controllers: [TrainingCalendarController],
   providers: [TrainingCalendarService, TrainingCalendarRepository],
+  exports: [TrainingCalendarService],
 })
 export class TrainingCalendarModule {}
