@@ -7,6 +7,7 @@ import type { INestApplication } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { Test } from '@nestjs/testing';
 import { AppModule } from '../src/app.module';
+import { BodyAnalyticsService } from '../src/body-analytics/body-analytics.service';
 import { HistoryService } from '../src/history/history.service';
 import { RecordsService } from '../src/records/records.service';
 import { environmentConfig } from '../src/config/environment.config';
@@ -20,6 +21,7 @@ import {
   dashboardServices,
   dashboardInput as input,
   emptyDashboard,
+  emptyBodyOverview,
   expectedDashboardWeek,
 } from './support/dashboard-services';
 
@@ -46,6 +48,8 @@ before(async () => {
     .useValue(f.history)
     .overrideProvider(RecordsService)
     .useValue(f.records)
+    .overrideProvider(BodyAnalyticsService)
+    .useValue(f.bodyAnalytics)
     .compile();
   app = module.createNestApplication({ logger: false });
   configureHttp(app);
@@ -104,6 +108,10 @@ void test('dashboard HTTP composes exact week, comparison and 12-week consistenc
   );
   assert.deepEqual(result.week, expectedDashboardWeek);
   assert.deepEqual(
+    result.bodyProgress,
+    JSON.parse(JSON.stringify(f.bodyOverviewData)) as unknown,
+  );
+  assert.deepEqual(
     result.recentWorkouts,
     JSON.parse(JSON.stringify(f.recentData.items)) as unknown,
   );
@@ -147,6 +155,9 @@ void test('dashboard HTTP rejects missing/duplicate query fields and malformed/u
       'limit',
       'recentLimit',
       'recordsLimit',
+      'bodyFrom',
+      'bodyTo',
+      'metric',
       'foo',
     ].map((key) => ({ [key]: '1' })),
   ])
@@ -160,6 +171,30 @@ void test('dashboard HTTP permits future Mondays and preserves zero baseline nul
     ...emptyDashboard(future),
     recentWorkouts: JSON.parse(JSON.stringify(f.recentData.items)) as unknown,
     personalRecords: JSON.parse(JSON.stringify(f.recordsData.items)) as unknown,
+    bodyProgress: JSON.parse(JSON.stringify(f.bodyOverviewData)) as unknown,
+  });
+});
+void test('dashboard HTTP preserves independent body timestamps and explicit nulls for partial metrics', async () => {
+  const body = object((await get()).bodyProgress);
+  assert.deepEqual(body.weightKg, {
+    latest: { value: 79, measuredAt: '2026-09-20T06:00:00.000Z' },
+    previous: { value: 80, measuredAt: '2026-09-01T06:00:00.000Z' },
+    change: -1,
+  });
+  assert.deepEqual(body.waistCm, {
+    latest: { value: 85, measuredAt: '2026-09-10T06:00:00.000Z' },
+    previous: null,
+    change: null,
+  });
+});
+void test('dashboard HTTP keeps an empty body overview null without changing populated training blocks', async (context) => {
+  const before = await get();
+  context.mock.method(f.bodyAnalytics, 'getOverview', async () =>
+    emptyBodyOverview(),
+  );
+  assert.deepEqual(await get(), {
+    ...before,
+    bodyProgress: emptyBodyOverview(),
   });
 });
 void test('dashboard HTTP has no write endpoints and refuses GET body selectors', async () => {
@@ -216,6 +251,15 @@ void test('dashboard HTTP never hides a History failure as an empty recent feed'
 void test('dashboard HTTP never hides a Records failure as an empty personal-record block', async (context) => {
   context.mock.method(f.records, 'getCurrentRecords', async () => {
     throw new Error('private SQL');
+  });
+  assert.deepEqual(await get(undefined, 500), {
+    statusCode: 500,
+    message: 'Internal server error',
+  });
+});
+void test('dashboard HTTP never hides a BodyAnalytics failure as empty body progress or partial success', async (context) => {
+  context.mock.method(f.bodyAnalytics, 'getOverview', async () => {
+    throw new Error('private BodyMeasurement SQL');
   });
   assert.deepEqual(await get(undefined, 500), {
     statusCode: 500,

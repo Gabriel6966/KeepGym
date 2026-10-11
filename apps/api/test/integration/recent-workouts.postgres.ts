@@ -31,7 +31,7 @@ function string(value: unknown): string {
   return value as string;
 }
 const endpoint = '/history/recent-workouts';
-void test('Recent workouts PostgreSQL HTTP: bounded snapshot feed, exact aggregates, ownership and six-read Dashboard composition', async (context) => {
+void test('Recent workouts PostgreSQL HTTP: bounded snapshot feed, exact aggregates, ownership and seven-read Dashboard composition', async (context) => {
   const connectionString = process.env.DATABASE_URL;
   assert.ok(connectionString);
   const db = new PrismaClient({
@@ -187,8 +187,9 @@ void test('Recent workouts PostgreSQL HTTP: bounded snapshot feed, exact aggrega
         const result = await dashboard();
         assert.deepEqual(result.recentWorkouts, []);
         assert.equal(
-          statements.filter((sql) => /^\s*(?:WITH|SELECT)\b/i.test(sql)).length,
-          6,
+          statements.filter((sql) => /^\s*\(*\s*(?:WITH|SELECT)\b/i.test(sql))
+            .length,
+          7,
         );
       },
     );
@@ -337,16 +338,16 @@ void test('Recent workouts PostgreSQL HTTP: bounded snapshot feed, exact aggrega
       },
     );
     await context.test(
-      'Dashboard all-time recent five equals History even for future weeks; six fixed domain reads',
+      'Dashboard all-time recent five equals History even for future weeks; seven fixed domain reads',
       async () => {
         const expected = (await recent('?limit=5')).items;
         for (const week of ['2026-10-05', '2099-01-05']) {
           statements.length = 0;
           const result = await dashboard(week);
           assert.equal(
-            statements.filter((sql) => /^\s*(?:WITH|SELECT)\b/i.test(sql))
+            statements.filter((sql) => /^\s*\(*\s*(?:WITH|SELECT)\b/i.test(sql))
               .length,
-            6,
+            7,
           );
           assert.deepEqual(result.recentWorkouts, expected);
           assert.equal(rows(result.recentWorkouts).length, 5);
@@ -473,7 +474,7 @@ void test('Recent workouts PostgreSQL HTTP: bounded snapshot feed, exact aggrega
           assert.match(JSON.stringify(root.Plan), /Aggregate/);
           assert.match(JSON.stringify(root.Plan), /Limit/);
           context.diagnostic(
-            `Recent History: 1 SELECT; Dashboard: 6. EXPLAIN ${String(root['Execution Time'])} ms; bounded sessions before child aggregation.`,
+            `Recent History: 1 SELECT; Dashboard: 7. EXPLAIN ${String(root['Execution Time'])} ms; bounded sessions before child aggregation.`,
           );
           const indexes = await db.$queryRaw<
             { indexname: string }[]

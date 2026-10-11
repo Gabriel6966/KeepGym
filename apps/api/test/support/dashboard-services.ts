@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto';
+import type { PublicBodyAnalyticsOverview } from '../../src/body-analytics/body-analytics.types';
 import { addCalendarDays } from '../../src/common/calendar-date';
 import { shiftLocalMonday } from '../../src/common/calendar-week';
 import type {
@@ -88,6 +89,7 @@ export function emptyDashboard(input = dashboardInput): PublicDashboardSummary {
     ...input,
     recentWorkouts: [],
     personalRecords: [],
+    bodyProgress: emptyBodyOverview(),
     week: {
       completedWorkouts: 0,
       completedSets: 0,
@@ -114,8 +116,31 @@ export function emptyDashboard(input = dashboardInput): PublicDashboardSummary {
     },
   };
 }
+export function emptyBodyOverview(): PublicBodyAnalyticsOverview {
+  const metric = () => ({ latest: null, previous: null, change: null });
+  return {
+    weightKg: metric(),
+    bodyFatPercent: metric(),
+    waistCm: metric(),
+    chestCm: metric(),
+    hipsCm: metric(),
+  };
+}
 export function dashboardServices() {
   const owner = randomUUID();
+  const bodyOverviewData: PublicBodyAnalyticsOverview = {
+    ...emptyBodyOverview(),
+    weightKg: {
+      latest: { value: 79, measuredAt: new Date('2026-09-20T06:00:00Z') },
+      previous: { value: 80, measuredAt: new Date('2026-09-01T06:00:00Z') },
+      change: -1,
+    },
+    waistCm: {
+      latest: { value: 85, measuredAt: new Date('2026-09-10T06:00:00Z') },
+      previous: null,
+      change: null,
+    },
+  };
   const recordsData: PublicCurrentRecords = {
     items: [
       {
@@ -207,6 +232,14 @@ export function dashboardServices() {
     userId === owner && week === dashboardInput.weekStart;
   return {
     owner,
+    bodyOverviewData,
+    bodyAnalytics: {
+      async getOverview(userId: string): Promise<PublicBodyAnalyticsOverview> {
+        return structuredClone(
+          userId === owner ? bodyOverviewData : emptyBodyOverview(),
+        );
+      },
+    },
     recordsData,
     records: {
       async getCurrentRecords(
