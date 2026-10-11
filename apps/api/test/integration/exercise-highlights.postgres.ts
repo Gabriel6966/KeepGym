@@ -34,7 +34,7 @@ const endpoint = '/analytics/exercise-highlights';
 const selects = (statements: readonly string[]) =>
   statements.filter((sql) => /^\s*\(*\s*(?:WITH|SELECT)\b/i.test(sql));
 
-void test('Exercise highlights PostgreSQL HTTP: actual latest/previous, distinct bounded exercises, exact snapshots, RepeatableRead and two/nine SELECTs', async (context) => {
+void test('Exercise highlights PostgreSQL HTTP: actual latest/previous, distinct bounded exercises, exact snapshots, RepeatableRead and two/ten SELECTs', async (context) => {
   const connectionString = process.env.DATABASE_URL;
   assert.ok(connectionString);
   const db = new PrismaClient({
@@ -194,11 +194,11 @@ void test('Exercise highlights PostgreSQL HTTP: actual latest/previous, distinct
       '/dashboard/summary?' +
       new URLSearchParams({ weekStart, timezone: 'Europe/Madrid' });
     await context.test(
-      'empty authenticated feeds use two SELECTs; empty Dashboard uses nine, strict limits and routes coexist',
+      'empty authenticated feeds use two SELECTs; empty Dashboard uses ten, strict limits and routes coexist',
       async () => {
         await request(endpoint, undefined, 401);
         assert.deepEqual(await observed(endpoint, a.token, 2), { items: [] });
-        const empty = await observed(dashboard(), a.token, 9);
+        const empty = await observed(dashboard(), a.token, 10);
         assert.deepEqual(empty.exerciseHighlights, []);
         for (const limit of [1, 20])
           assert.deepEqual(await feed(limit), { items: [] });
@@ -528,20 +528,20 @@ void test('Exercise highlights PostgreSQL HTTP: actual latest/previous, distinct
         const expected = rows((await feed()).items);
         assert.equal(expected.length, 5);
         for (const weekStart of ['2026-10-05', '2099-01-05']) {
-          const result = await observed(dashboard(weekStart), a.token, 9);
+          const result = await observed(dashboard(weekStart), a.token, 10);
           assert.deepEqual(result.exerciseHighlights, expected);
           assert.equal(rows(result.exerciseHighlights).length, 5);
           if (weekStart === '2099-01-05')
             assert.equal(object(result.week).completedWorkouts, 0);
         }
-        const foreign = await observed(dashboard('2099-01-05'), b.token, 9);
+        const foreign = await observed(dashboard('2099-01-05'), b.token, 10);
         assert.deepEqual(
           foreign.exerciseHighlights,
           (await feed(5, b.token)).items,
         );
         await request(dashboard() + '&highlightsLimit=1', a.token, 400);
         context.diagnostic(
-          'Observed real domain SELECTs: exercise highlights=2, including empty; Dashboard=9, including future. No per-exercise reads.',
+          'Observed real domain SELECTs: exercise highlights=2, including empty; Dashboard=10, including future. No per-exercise reads.',
         );
       },
     );

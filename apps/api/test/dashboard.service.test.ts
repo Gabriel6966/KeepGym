@@ -15,6 +15,7 @@ import { TrainingTrendsService } from '../src/training-trends/training-trends.se
 import { TrainingConsistencyService } from '../src/training-consistency/training-consistency.service';
 import { addCalendarDays } from '../src/common/calendar-date';
 import { shiftLocalMonday } from '../src/common/calendar-week';
+import { MuscleGroup } from '../src/generated/prisma/enums';
 import {
   dashboardServices,
   dashboardInput as input,
@@ -27,6 +28,7 @@ async function setup(context: TestContext) {
   const f = dashboardServices();
   const calendar = context.mock.method(f.calendar, 'getDays'),
     trends = context.mock.method(f.trends, 'getWeeklyComparison'),
+    muscles = context.mock.method(f.trends, 'getMuscleGroupWeek'),
     consistency = context.mock.method(f.consistency, 'getWeeklyConsistency'),
     history = context.mock.method(f.history, 'getRecentCompletedWorkouts'),
     records = context.mock.method(f.records, 'getCurrentRecords'),
@@ -51,6 +53,7 @@ async function setup(context: TestContext) {
     calls: {
       calendar,
       trends,
+      muscles,
       consistency,
       history,
       records,
@@ -77,6 +80,7 @@ void test('dashboard sums seven dense days: 4 workouts, 4 sets, 33 reps, 1855.75
     'comparison',
     'consistency',
     'exerciseHighlights',
+    'muscleGroups',
     'personalRecords',
     'recentWorkouts',
     'timezone',
@@ -135,6 +139,8 @@ void test('dashboard derives exact Monday 2026-07-20 from 2026-10-05 minus 77 ca
     },
   ]);
   assert.deepEqual(f.calls.trends.mock.calls[0]!.arguments, [f.owner, input]);
+  assert.deepEqual(f.calls.muscles.mock.calls[0]!.arguments, [f.owner, input]);
+  assert.deepEqual(result.muscleGroups, f.muscleGroupsData);
   assert.deepEqual(f.calls.history.mock.calls[0]!.arguments, [
     f.owner,
     { limit: 5 },
@@ -251,7 +257,7 @@ void test('dashboard rejects invalid inputs and unsupported calendar boundaries 
   for (const call of Object.values(f.calls))
     assert.equal(call.mock.calls.length, 0);
 });
-void test('dashboard launches all seven independent reads before awaiting results', async (context) => {
+void test('dashboard launches all eight independent reads before awaiting results, including both TrainingTrends read models', async (context) => {
   const f = await setup(context);
   let release!: () => void;
   const gate = new Promise<void>((resolve) => {
@@ -264,6 +270,10 @@ void test('dashboard launches all seven independent reads before awaiting result
   f.calls.trends.mock.mockImplementation(async () => {
     await gate;
     return f.comparisonData;
+  });
+  f.calls.muscles.mock.mockImplementation(async () => {
+    await gate;
+    return f.muscleGroupsData;
   });
   f.calls.consistency.mock.mockImplementation(async () => {
     await gate;
@@ -293,6 +303,91 @@ void test('dashboard launches all seven independent reads before awaiting result
     release();
   }
   assert.deepEqual((await pending).week, expectedDashboardWeek);
+});
+void test('dashboard preserves sparse muscle metrics and ASCII order without ranking, limiting or mutating service output', async (context) => {
+  const f = await setup(context);
+  f.muscleGroupsData.unshift({
+    muscleGroup: 'BACK',
+    completedWorkouts: 1,
+    completedSets: 2,
+    totalReps: 16,
+    totalVolumeKg: 0,
+  });
+  f.muscleGroupsData[2]!.totalVolumeKg = 9999.75;
+  const before = structuredClone(f.muscleGroupsData);
+  const result = await f.service.getSummary(f.owner, input);
+  assert.deepEqual(result.muscleGroups, before);
+  assert.deepEqual(
+    result.muscleGroups.map((group) => group.muscleGroup),
+    ['BACK', 'CHEST', 'TRICEPS'],
+  );
+  assert.equal(result.muscleGroups[0]!.totalVolumeKg, 0);
+  assert.deepEqual(f.muscleGroupsData, before);
+});
+void test('muscle snapshot is selected-week scoped while all-time dashboard sections remain available', async (context) => {
+  const f = await setup(context);
+  const before = await f.service.getSummary(f.owner, input);
+  const next = { weekStart: '2026-10-12', timezone: 'America/New_York' };
+  f.calls.muscles.mock.mockImplementation(async (userId, query) =>
+    userId === f.owner && query.weekStart === next.weekStart
+      ? [
+          {
+            muscleGroup: 'BACK',
+            completedWorkouts: 1,
+            completedSets: 2,
+            totalReps: 16,
+            totalVolumeKg: 0,
+          },
+        ]
+      : f.muscleGroupsData,
+  );
+  const result = await f.service.getSummary(f.owner, next);
+  assert.deepEqual(result.muscleGroups, [
+    {
+      muscleGroup: 'BACK',
+      completedWorkouts: 1,
+      completedSets: 2,
+      totalReps: 16,
+      totalVolumeKg: 0,
+    },
+  ]);
+  assert.notDeepEqual(result.muscleGroups, before.muscleGroups);
+  assert.deepEqual(f.calls.muscles.mock.calls.at(-1)!.arguments, [
+    f.owner,
+    next,
+  ]);
+  for (const key of [
+    'recentWorkouts',
+    'personalRecords',
+    'bodyProgress',
+    'exerciseHighlights',
+  ] as const)
+    assert.deepEqual(result[key], before[key]);
+});
+void test('empty muscle week remains sparse and leaves all populated dashboard sections intact', async (context) => {
+  const f = await setup(context);
+  const before = await f.service.getSummary(f.owner, input);
+  f.calls.muscles.mock.mockImplementation(async () => []);
+  assert.deepEqual(await f.service.getSummary(f.owner, input), {
+    ...before,
+    muscleGroups: [],
+  });
+});
+void test('dashboard does not apply feed limits to the canonical muscle enum', async (context) => {
+  const f = await setup(context);
+  const groups = Object.values(MuscleGroup)
+    .sort()
+    .map((muscleGroup) => ({
+      muscleGroup,
+      completedWorkouts: 1,
+      completedSets: 1,
+      totalReps: 8,
+      totalVolumeKg: 0,
+    }));
+  f.calls.muscles.mock.mockImplementation(async () => groups);
+  const result = await f.service.getSummary(f.owner, input);
+  assert.deepEqual(result.muscleGroups, groups);
+  assert.equal(result.muscleGroups.length, Object.values(MuscleGroup).length);
 });
 void test('empty exercise highlights preserve the other populated dashboard sections', async (context) => {
   const f = await setup(context);

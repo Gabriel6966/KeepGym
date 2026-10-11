@@ -31,7 +31,7 @@ function string(value: unknown): string {
   return value as string;
 }
 const endpoint = '/history/recent-workouts';
-void test('Recent workouts PostgreSQL HTTP: bounded snapshot feed, exact aggregates, ownership and nine-read Dashboard composition', async (context) => {
+void test('Recent workouts PostgreSQL HTTP: bounded snapshot feed, exact aggregates, ownership and ten-read Dashboard composition', async (context) => {
   const connectionString = process.env.DATABASE_URL;
   assert.ok(connectionString);
   const db = new PrismaClient({
@@ -189,7 +189,7 @@ void test('Recent workouts PostgreSQL HTTP: bounded snapshot feed, exact aggrega
         assert.equal(
           statements.filter((sql) => /^\s*\(*\s*(?:WITH|SELECT)\b/i.test(sql))
             .length,
-          9,
+          10,
         );
       },
     );
@@ -338,7 +338,7 @@ void test('Recent workouts PostgreSQL HTTP: bounded snapshot feed, exact aggrega
       },
     );
     await context.test(
-      'Dashboard all-time recent five equals History even for future weeks; nine fixed domain reads',
+      'Dashboard all-time recent five equals History even for future weeks; ten fixed domain reads',
       async () => {
         const expected = (await recent('?limit=5')).items;
         for (const week of ['2026-10-05', '2099-01-05']) {
@@ -347,7 +347,7 @@ void test('Recent workouts PostgreSQL HTTP: bounded snapshot feed, exact aggrega
           assert.equal(
             statements.filter((sql) => /^\s*\(*\s*(?:WITH|SELECT)\b/i.test(sql))
               .length,
-            9,
+            10,
           );
           assert.deepEqual(result.recentWorkouts, expected);
           assert.equal(rows(result.recentWorkouts).length, 5);
@@ -474,7 +474,7 @@ void test('Recent workouts PostgreSQL HTTP: bounded snapshot feed, exact aggrega
           assert.match(JSON.stringify(root.Plan), /Aggregate/);
           assert.match(JSON.stringify(root.Plan), /Limit/);
           context.diagnostic(
-            `Recent History: 1 SELECT; Dashboard: 9. EXPLAIN ${String(root['Execution Time'])} ms; bounded sessions before child aggregation.`,
+            `Recent History: 1 SELECT; Dashboard: 10. EXPLAIN ${String(root['Execution Time'])} ms; bounded sessions before child aggregation.`,
           );
           const indexes = await db.$queryRaw<
             { indexname: string }[]

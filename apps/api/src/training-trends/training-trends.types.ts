@@ -40,6 +40,11 @@ export interface WeeklyTrainingTrendsQuery {
   timezone: string;
 }
 
+// The existing timestamp API and internal local-week composition share one
+// muscle aggregation. Only the temporal boundary representation differs.
+export type MuscleGroupWeeklyQuery =
+  WeeklyTrainingTrendsQuery | WeeklyComparisonInput;
+
 // PostgreSQL aggregates stay exact as text until the public boundary.
 export interface WeeklyTrainingTrendsRecord {
   weekStart: string;

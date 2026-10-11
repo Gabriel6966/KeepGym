@@ -249,3 +249,129 @@ void test('muscle trends validates raw enum text and sanitizes unsafe numeric/pe
     TrainingTrendsPersistenceError,
   );
 });
+void test('local-week muscle capability reuses canonical metrics, sparse output and one scoped repository operation', async (context) => {
+  const f = await setup(context);
+  const selected = { weekStart: '2026-09-14', timezone: input.timezone };
+  assert.deepEqual(
+    await f.service.getMuscleGroupWeek(f.owner, selected),
+    expectedMuscleBuckets[0]!.muscleGroups,
+  );
+  assert.deepEqual(f.read.mock.calls[0]!.arguments, [f.owner, selected]);
+  assert.deepEqual(
+    await f.service.getMuscleGroupWeek(f.owner, {
+      ...selected,
+      weekStart: '2026-09-21',
+    }),
+    expectedMuscleBuckets[1]!.muscleGroups,
+  );
+  for (const userId of [f.owner, randomUUID()])
+    assert.deepEqual(
+      await f.service.getMuscleGroupWeek(userId, {
+        ...selected,
+        weekStart: '2099-01-05',
+      }),
+      [],
+    );
+});
+void test('local muscle week has independent half-open local midnights across spring and autumn DST', async (context) => {
+  const f = await setup(context),
+    first = f.repository.occurrences[0]!;
+  for (const [weekStart, start, end] of [
+    ['2026-03-23', '2026-03-22T23:00:00Z', '2026-03-29T22:00:00Z'],
+    ['2026-10-19', '2026-10-18T22:00:00Z', '2026-10-25T23:00:00Z'],
+  ] as const) {
+    const from = new Date(start),
+      to = new Date(end);
+    f.repository.occurrences.splice(
+      0,
+      f.repository.occurrences.length,
+      ...[
+        from.getTime() - 1,
+        from.getTime(),
+        to.getTime() - 1,
+        to.getTime(),
+      ].map((time) => ({
+        ...first,
+        sessionId: randomUUID(),
+        startedAt: new Date(time),
+        sets: [{ loadKg: '82.25', reps: 7 }],
+      })),
+    );
+    const result = await f.service.getMuscleGroupWeek(f.owner, {
+      weekStart,
+      timezone: 'Europe/Madrid',
+    });
+    assert.deepEqual(result, [
+      {
+        muscleGroup: 'CHEST',
+        completedWorkouts: 2,
+        completedSets: 2,
+        totalReps: 14,
+        totalVolumeKg: 1151.5,
+      },
+    ]);
+    const direct = await f.service.getMuscleGroupWeeklyTrends(f.owner, {
+      from: start,
+      to: new Date(to.getTime() - 1).toISOString(),
+      timezone: 'Europe/Madrid',
+    });
+    assert.deepEqual(direct.buckets[0]!.muscleGroups, result);
+  }
+});
+void test('local muscle week validates Monday/timezone/ownership before repository and accepts future Mondays', async (context) => {
+  const f = await setup(context);
+  const selected = { weekStart: '2026-09-14', timezone: 'Europe/Madrid' };
+  for (const override of [
+    { weekStart: '2026-09-15' },
+    { weekStart: '2026-02-30' },
+    { weekStart: '2026-09-14T00:00:00Z' },
+    { weekStart: '9999-12-27' },
+    { timezone: 'GMT+2' },
+    { timezone: 'Europe/Foo' },
+  ])
+    await assert.rejects(
+      f.service.getMuscleGroupWeek(f.owner, { ...selected, ...override }),
+      InvalidTrainingTrendsQueryError,
+    );
+  await assert.rejects(
+    f.service.getMuscleGroupWeek('invalid', selected),
+    InvalidTrainingTrendsQueryError,
+  );
+  assert.equal(f.read.mock.calls.length, 0);
+  assert.deepEqual(
+    await f.service.getMuscleGroupWeek(f.owner, {
+      ...selected,
+      weekStart: '2099-01-05',
+    }),
+    [],
+  );
+});
+void test('local muscle week rejects unexpected buckets and sanitizes read errors rather than returning empty', async (context) => {
+  const f = await setup(context),
+    selected = { weekStart: '2026-09-14', timezone: 'Europe/Madrid' };
+  const data = await f.repository.findMuscleGroupWeeklyTrends(
+    f.owner,
+    selected,
+  );
+  for (const override of [
+    { weekStart: '2026-09-21' },
+    { muscleGroup: 'UNKNOWN' },
+    { completedSets: '-1' },
+  ]) {
+    f.read.mock.mockImplementation(async () => [{ ...data[0]!, ...override }]);
+    await assert.rejects(
+      f.service.getMuscleGroupWeek(f.owner, selected),
+      TrainingTrendsPersistenceError,
+    );
+  }
+  f.read.mock.mockImplementation(async () => {
+    throw new Error('Private SQL');
+  });
+  await assert.rejects(
+    f.service.getMuscleGroupWeek(f.owner, selected),
+    (error: unknown) =>
+      error instanceof TrainingTrendsPersistenceError &&
+      !error.message.includes('SQL') &&
+      error.cause === undefined,
+  );
+});

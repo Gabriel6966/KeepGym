@@ -8,6 +8,7 @@ import type {
   ExerciseWeeklyTrendsData,
   ExerciseWeeklyTrendsRecord,
   MuscleGroupWeeklyTrendsRecord,
+  MuscleGroupWeeklyQuery,
   WeeklyEstimated1RMCandidate,
   WeeklyComparisonQuery,
   WeeklyTrainingTrendsQuery,
@@ -73,9 +74,18 @@ export class TrainingTrendsRepository {
 
   async findMuscleGroupWeeklyTrends(
     userId: string,
-    query: WeeklyTrainingTrendsQuery,
+    query: MuscleGroupWeeklyQuery,
   ): Promise<MuscleGroupWeeklyTrendsRecord[]> {
     try {
+      // Resolve each calendar midnight independently through PostgreSQL/IANA.
+      // A DST week is not necessarily 168 elapsed hours. The direct API retains
+      // its inclusive instant range; selected local weeks use [Monday, next Monday).
+      const range =
+        'weekStart' in query
+          ? Prisma.sql`w.started_at >= (${query.weekStart}::date::timestamp AT TIME ZONE ${query.timezone})
+            AND w.started_at < ((${query.weekStart}::date + 7)::timestamp AT TIME ZONE ${query.timezone})`
+          : Prisma.sql`w.started_at >= ${query.from.toISOString()}::timestamptz
+            AND w.started_at <= ${query.to.toISOString()}::timestamptz`;
       // One statement gives a consistent read. Each set belongs only to its
       // snapshot's primary muscle; no secondary expansion or mutable catalog join.
       return await this.prisma.$queryRaw<
@@ -91,8 +101,7 @@ export class TrainingTrendsRepository {
         JOIN workout_session_exercises e ON e.workout_session_id = w.id
         JOIN set_entries s ON s.workout_session_exercise_id = e.id
         WHERE w.user_id = ${userId}::uuid AND w.status = 'COMPLETED'
-          AND w.started_at >= ${query.from.toISOString()}::timestamptz
-          AND w.started_at <= ${query.to.toISOString()}::timestamptz
+          AND ${range}
         GROUP BY 1, 2 ORDER BY 1 ASC, 2 ASC`);
     } catch {
       throw new TrainingTrendsPersistenceError();

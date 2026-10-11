@@ -3,7 +3,7 @@ import { Prisma, type MuscleGroup } from '../../src/generated/prisma/client';
 import type { TrainingTrendsRepository } from '../../src/training-trends/training-trends.repository';
 import type {
   MuscleGroupWeeklyTrendsRecord,
-  WeeklyTrainingTrendsQuery,
+  MuscleGroupWeeklyQuery,
 } from '../../src/training-trends/training-trends.types';
 import {
   localMonday,
@@ -24,7 +24,7 @@ export class InMemoryMuscleTrainingTrendsRepository implements Pick<
   constructor(readonly occurrences: MuscleTrendOccurrence[]) {}
   findMuscleGroupWeeklyTrends(
     userId: string,
-    query: WeeklyTrainingTrendsQuery,
+    query: MuscleGroupWeeklyQuery,
   ): Promise<MuscleGroupWeeklyTrendsRecord[]> {
     const groups = new Map<
       string,
@@ -35,8 +35,11 @@ export class InMemoryMuscleTrainingTrendsRepository implements Pick<
         occurrence.userId !== userId ||
         occurrence.status !== 'COMPLETED' ||
         !occurrence.sets.length ||
-        occurrence.startedAt < query.from ||
-        occurrence.startedAt > query.to
+        ('weekStart' in query
+          ? localMonday(occurrence.startedAt, query.timezone) !==
+            query.weekStart
+          : occurrence.startedAt < query.from ||
+            occurrence.startedAt > query.to)
       )
         continue;
       const weekStart = localMonday(occurrence.startedAt, query.timezone);

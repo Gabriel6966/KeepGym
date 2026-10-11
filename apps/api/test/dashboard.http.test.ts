@@ -110,6 +110,7 @@ void test('dashboard HTTP composes exact week, comparison and 12-week consistenc
     JSON.parse(JSON.stringify(f.recordsData.items)) as unknown,
   );
   assert.deepEqual(result.week, expectedDashboardWeek);
+  assert.deepEqual(result.muscleGroups, f.muscleGroupsData);
   assert.deepEqual(
     result.exerciseHighlights,
     JSON.parse(JSON.stringify(f.highlightsData.items)) as unknown,
@@ -163,6 +164,8 @@ void test('dashboard HTTP rejects missing/duplicate query fields and malformed/u
       'recentLimit',
       'recordsLimit',
       'highlightsLimit',
+      'muscleLimit',
+      'includeMuscles',
       'bodyFrom',
       'bodyTo',
       'metric',
@@ -183,6 +186,30 @@ void test('dashboard HTTP permits future Mondays and preserves zero baseline nul
     exerciseHighlights: JSON.parse(
       JSON.stringify(f.highlightsData.items),
     ) as unknown,
+  });
+});
+void test('dashboard HTTP muscle snapshot changes with selected week, remains sparse and leaves historical sections independent', async () => {
+  const current = await get();
+  const otherWeek = await get(
+    new URLSearchParams({ ...input, weekStart: '2026-10-12' }),
+  );
+  assert.deepEqual(current.muscleGroups, f.muscleGroupsData);
+  assert.deepEqual(otherWeek.muscleGroups, []);
+  for (const key of [
+    'recentWorkouts',
+    'personalRecords',
+    'bodyProgress',
+    'exerciseHighlights',
+  ])
+    assert.deepEqual(otherWeek[key], current[key]);
+});
+void test('dashboard HTTP never hides the muscle TrainingTrends failure as empty data or partial success', async (context) => {
+  context.mock.method(f.trends, 'getMuscleGroupWeek', async () => {
+    throw new Error('private muscle SQL');
+  });
+  assert.deepEqual(await get(undefined, 500), {
+    statusCode: 500,
+    message: 'Internal server error',
   });
 });
 void test('dashboard HTTP preserves independent body timestamps and explicit nulls for partial metrics', async () => {

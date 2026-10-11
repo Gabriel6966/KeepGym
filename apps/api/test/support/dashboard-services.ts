@@ -10,6 +10,7 @@ import type {
 import type {
   PublicWeeklyComparison,
   WeeklyComparisonInput,
+  PublicMuscleGroupMetrics,
 } from '../../src/training-trends/training-trends.types';
 import type {
   PublicWeeklyConsistency,
@@ -92,6 +93,7 @@ export function emptyDashboard(input = dashboardInput): PublicDashboardSummary {
     personalRecords: [],
     bodyProgress: emptyBodyOverview(),
     exerciseHighlights: [],
+    muscleGroups: [],
     week: {
       completedWorkouts: 0,
       completedSets: 0,
@@ -130,6 +132,22 @@ export function emptyBodyOverview(): PublicBodyAnalyticsOverview {
 }
 export function dashboardServices() {
   const owner = randomUUID();
+  const muscleGroupsData: PublicMuscleGroupMetrics[] = [
+    {
+      muscleGroup: 'CHEST',
+      completedWorkouts: 2,
+      completedSets: 5,
+      totalReps: 40,
+      totalVolumeKg: 3080,
+    },
+    {
+      muscleGroup: 'TRICEPS',
+      completedWorkouts: 1,
+      completedSets: 2,
+      totalReps: 20,
+      totalVolumeKg: 500,
+    },
+  ];
   const highlightsData: PublicExerciseHighlights = {
     items: [
       {
@@ -256,6 +274,7 @@ export function dashboardServices() {
   return {
     owner,
     highlightsData,
+    muscleGroupsData,
     analytics: {
       async getExerciseHighlights(
         userId: string,
@@ -319,6 +338,14 @@ export function dashboardServices() {
       },
     },
     trends: {
+      async getMuscleGroupWeek(
+        userId: string,
+        query: WeeklyComparisonInput,
+      ): Promise<PublicMuscleGroupMetrics[]> {
+        return structuredClone(
+          active(userId, query.weekStart) ? muscleGroupsData : [],
+        );
+      },
       async getWeeklyComparison(
         userId: string,
         query: WeeklyComparisonInput,
