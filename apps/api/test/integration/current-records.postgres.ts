@@ -32,9 +32,9 @@ function string(value: unknown): string {
 }
 const endpoint = '/records/current';
 const readStatements = (statements: readonly string[]) =>
-  statements.filter((sql) => /^\s*(?:WITH|SELECT)\b/i.test(sql));
+  statements.filter((sql) => /^\s*\(*\s*(?:WITH|SELECT)\b/i.test(sql));
 
-void test('Current Records PostgreSQL HTTP: derived holders, exact first achievements, scoped snapshots, two reads and six-read Dashboard', async (context) => {
+void test('Current Records PostgreSQL HTTP: derived holders, exact first achievements, scoped snapshots, two reads and seven-read Dashboard', async (context) => {
   const connectionString = process.env.DATABASE_URL;
   assert.ok(connectionString);
   const db = new PrismaClient({
@@ -464,7 +464,7 @@ void test('Current Records PostgreSQL HTTP: derived holders, exact first achieve
       },
     );
     await context.test(
-      'Records/Dashboard identical bounded all-time items, future independence, two/six fixed SELECTs',
+      'Records/Dashboard identical bounded all-time items, future independence, two/seven fixed SELECTs',
       async () => {
         const expected = await feed(5);
         for (const limit of [1, 5, 20]) {
@@ -475,7 +475,7 @@ void test('Current Records PostgreSQL HTTP: derived holders, exact first achieve
         for (const week of ['2026-09-07', '2099-01-05']) {
           statements.length = 0;
           const result = await dashboard(week);
-          assert.equal(readStatements(statements).length, 6);
+          assert.equal(readStatements(statements).length, 7);
           assert.deepEqual(result.personalRecords, expected);
           assert.equal(rows(result.personalRecords).length, 5);
           if (week === '2099-01-05')
@@ -491,7 +491,7 @@ void test('Current Records PostgreSQL HTTP: derived holders, exact first achieve
         );
         assert.ok(foreign.every((row) => Number(row.loadKg) === 3000));
         context.diagnostic(
-          'Observed current Records: 2 SELECTs; Dashboard: 6 domain SELECTs (transaction control excluded).',
+          'Observed current Records: 2 SELECTs; Dashboard: 7 domain SELECTs (transaction control excluded).',
         );
       },
     );

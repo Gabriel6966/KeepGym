@@ -35,7 +35,7 @@ function string(value: unknown): string {
 const endpoint = '/dashboard/summary';
 type SetFixture = { loadKg: string; reps: number };
 
-void test('Dashboard PostgreSQL HTTP: domain composition, exact selected week, comparison, twelve-week streaks and six fixed reads', async (context) => {
+void test('Dashboard PostgreSQL HTTP: domain composition, exact selected week, comparison, twelve-week streaks and seven fixed reads', async (context) => {
   const connectionString = process.env.DATABASE_URL;
   assert.ok(connectionString);
   const db = new PrismaClient({
@@ -188,17 +188,17 @@ void test('Dashboard PostgreSQL HTTP: domain composition, exact selected week, c
       statements.length = 0;
       const result = await summary(override, token);
       const observed = statements.filter((sql) =>
-        /^\s*(?:WITH|SELECT)\b/i.test(sql),
+        /^\s*\(*\s*(?:WITH|SELECT)\b/i.test(sql),
       );
-      assert.equal(observed.length, 6);
+      assert.equal(observed.length, 7);
       assert.equal(
         observed.filter((sql) => sql.includes('recent AS MATERIALIZED')).length,
         1,
       );
       assert.equal(observed.filter((sql) => /^\s*WITH\b/i.test(sql)).length, 4);
       assert.equal(
-        observed.filter((sql) => /^\s*SELECT\b/i.test(sql)).length,
-        2,
+        observed.filter((sql) => /^\s*\(*\s*SELECT\b/i.test(sql)).length,
+        3,
       );
       assert.equal(
         observed.filter((sql) => sql.includes('session_activity')).length,
@@ -212,15 +212,19 @@ void test('Dashboard PostgreSQL HTTP: domain composition, exact selected week, c
         observed.filter((sql) => sql.includes('"activeDays"')).length,
         1,
       );
+      assert.equal(
+        observed.filter((sql) => sql.includes('FROM body_measurements')).length,
+        1,
+      );
       for (const sql of observed)
         assert.doesNotMatch(
           sql,
-          /INSERT|UPDATE|DELETE|JOIN exercises|workout_templates|body_measurements/i,
+          /INSERT|UPDATE|DELETE|JOIN exercises|workout_templates|profiles/i,
         );
       return result;
     };
     await context.test(
-      'empty/future dashboard uses six domain SELECTs with zeros, null average and null baseline percentages',
+      'empty/future dashboard uses seven domain SELECTs with zeros, null average and null baseline percentages',
       async () => {
         assert.deepEqual(await observe(), emptyDashboard());
         const future = { weekStart: '2099-01-05', timezone: 'UTC' };
@@ -475,7 +479,7 @@ void test('Dashboard PostgreSQL HTTP: domain composition, exact selected week, c
     );
     assert.equal(await db.exercise.count(), catalogBefore);
     context.diagnostic(
-      'Dashboard: 6 domain SELECTs per real HTTP request (calendar=1, comparison=1, consistency=1, recentHistory=1, records=2), empty and populated. No Dashboard SQL.',
+      'Dashboard: 7 domain SELECTs per real HTTP request (calendar=1, comparison=1, consistency=1, recentHistory=1, records=2, bodyOverview=1), empty and populated. No Dashboard SQL.',
     );
   } finally {
     try {

@@ -9,5 +9,6 @@ import { BodyAnalyticsService } from './body-analytics.service';
   imports: [AuthModule, PrismaModule],
   controllers: [BodyAnalyticsController],
   providers: [BodyAnalyticsRepository, BodyAnalyticsService],
+  exports: [BodyAnalyticsService],
 })
 export class BodyAnalyticsModule {}

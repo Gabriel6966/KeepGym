@@ -824,7 +824,7 @@ Renombrar/archivar la plantilla o editar el catálogo no reconstruye el pasado.
 Una única consulta selecciona primero las N sesiones y agrega sus series sin
 multiplicar workouts ni duración. Reutiliza índices existentes; sin migración.
 
-## Resumen de dashboard (GYM-023 / GYM-024 / GYM-025)
+## Resumen de dashboard (GYM-023 / GYM-024 / GYM-025 / GYM-026)
 
 `GET /dashboard/summary` requiere Bearer access token y exactamente `weekStart`
 y `timezone`. `weekStart` es un lunes local real en formato `YYYY-MM-DD`, no un
@@ -852,14 +852,23 @@ Dashboard compone servicios de dominio, sin repository ni SQL propios:
   conseguidos más recientemente, con la misma representación de
   `/records/current?limit=5`. Es all-time e independiente de `weekStart`, también
   para semanas futuras. No son eventos históricos de PR ni admite `recordsLimit`.
+- `bodyProgress`: reutiliza el overview all-time de BodyAnalyticsService con su
+  mismo contrato público para `weightKg`, `bodyFatPercent`, `waistCm`, `chestCm`
+  y `hipsCm`. Cada métrica conserva su secuencia independiente de observaciones
+  no-null: `latest`, `previous`, sus `measuredAt` y `change` ya calculado por
+  BodyAnalytics. La ausencia se representa con `null`, no con cero. Las unidades
+  siguen siendo kg/cm/%; es independiente de `weekStart`, también para semanas
+  futuras, sin BMI, objetivos, conversión imperial ni interpretación cualitativa.
 
-Los cinco dominios mantienen ownership y política `COMPLETED`; la actividad admite
-sesiones sin series, mientras los records requieren sets elegibles. Las lecturas
-se lanzan en paralelo: seis SELECTs fijos (Records utiliza dos), sin N+1 ni
+Los seis dominios mantienen ownership. Las métricas de entrenamiento usan
+`COMPLETED`; la actividad admite sesiones sin series y los records requieren sets
+elegibles. El progreso corporal procede exclusivamente de BodyMeasurement a través
+de BodyAnalytics. Las lecturas se lanzan en paralelo: siete SELECTs fijos
+(Records utiliza dos; BodyAnalytics overview, uno), sin N+1 ni
 transacción compartida entre dominios. Con escrituras concurrentes pueden reflejar
 instantes ligeramente distintos; un fallo no se sustituye por ceros ni resultados
-parciales, tampoco ante un fallo de History o Records. El resumen es factual/read-only,
-sin body summary, eventos de PR, recomendaciones ni interpretación de calidad. No modifica schema,
+parciales, tampoco ante un fallo de History, Records o BodyAnalytics. El resumen es factual/read-only,
+sin eventos de PR, recomendaciones ni interpretación de calidad. No modifica schema,
 índices ni las ocho migraciones.
 
 ## Calidad y build

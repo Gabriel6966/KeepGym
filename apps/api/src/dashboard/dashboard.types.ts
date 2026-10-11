@@ -1,5 +1,6 @@
 import type { PublicRecentWorkout } from '../history/history.types';
 import type { PublicCurrentRecord } from '../records/records.types';
+import type { PublicBodyAnalyticsOverview } from '../body-analytics/body-analytics.types';
 
 export interface DashboardSummaryInput {
   weekStart: string;
@@ -20,6 +21,7 @@ export interface DashboardComparisonMetric {
 export interface PublicDashboardSummary extends DashboardSummaryInput {
   recentWorkouts: PublicRecentWorkout[];
   personalRecords: PublicCurrentRecord[];
+  bodyProgress: PublicBodyAnalyticsOverview;
   week: {
     completedWorkouts: number;
     completedSets: number;

@@ -95,6 +95,9 @@ generados.
   determinista y sin excluir sesiones COMPLETED que no tengan series.
   Los bloques de récords actuales se componen desde RecordsService y no dependen
   de la semana seleccionada.
+  El progreso corporal se compone desde el overview all-time de BodyAnalyticsService,
+  sin reconstruir cambios ni acceder a BodyMeasurement desde Dashboard; conserva
+  el contrato por métrica y las unidades canónicas, independiente de la semana.
 
 ## Seguridad
 

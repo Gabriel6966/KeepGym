@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { AuthModule } from '../auth/auth.module';
+import { BodyAnalyticsModule } from '../body-analytics/body-analytics.module';
 import { HistoryModule } from '../history/history.module';
 import { RecordsModule } from '../records/records.module';
 import { TrainingCalendarModule } from '../training-calendar/training-calendar.module';
@@ -11,6 +12,7 @@ import { DashboardService } from './dashboard.service';
 @Module({
   imports: [
     AuthModule,
+    BodyAnalyticsModule,
     HistoryModule,
     RecordsModule,
     TrainingCalendarModule,
