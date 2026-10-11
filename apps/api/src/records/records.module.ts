@@ -9,5 +9,6 @@ import { RecordsService } from './records.service';
   imports: [AuthModule, PrismaModule],
   controllers: [RecordsController],
   providers: [RecordsRepository, RecordsService],
+  exports: [RecordsService],
 })
 export class RecordsModule {}

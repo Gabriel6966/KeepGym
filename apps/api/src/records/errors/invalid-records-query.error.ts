@@ -1,5 +1,5 @@
 export class InvalidRecordsQueryError extends Error {
-  constructor() {
-    super('Identifiers must be UUIDs.');
+  constructor(message = 'Identifiers must be UUIDs.') {
+    super(message);
   }
 }

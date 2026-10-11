@@ -36,7 +36,30 @@ export interface ExerciseRecordData {
   maxLoad: RecordCandidate | null;
   estimatedCandidates: RecordCandidate[];
 }
-export type PersonalRecordType = 'MAX_LOAD' | 'ESTIMATED_1RM';
+export const personalRecordTypes = ['MAX_LOAD', 'ESTIMATED_1RM'] as const;
+export type PersonalRecordType = (typeof personalRecordTypes)[number];
+export interface CurrentRecordCandidate extends RecordCandidate {
+  sourceExerciseId: string;
+  exerciseName: string;
+  exerciseSlug: string;
+}
+export interface CurrentRecordData {
+  maxLoadCandidates: CurrentRecordCandidate[];
+  estimatedCandidates: CurrentRecordCandidate[];
+}
+export interface PublicCurrentRecord {
+  type: PersonalRecordType;
+  exercise: { sourceExerciseId: string; name: string; slug: string };
+  valueKg: number;
+  achievedAt: Date;
+  workoutSessionId: string;
+  setEntryId: string;
+  loadKg: number;
+  reps: number;
+}
+export interface PublicCurrentRecords {
+  items: PublicCurrentRecord[];
+}
 export interface PublicPersonalRecord<T extends PersonalRecordType> {
   type: T;
   valueKg: number;

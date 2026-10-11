@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { HistoryService } from '../history/history.service';
+import { RecordsService } from '../records/records.service';
 import { sumMetrics } from '../analytics/analytics.math';
 import { iterateCalendarDays } from '../common/calendar-date';
 import { TrainingCalendarService } from '../training-calendar/training-calendar.service';
@@ -35,6 +36,7 @@ export class DashboardService {
     private readonly trends: TrainingTrendsService,
     private readonly consistency: TrainingConsistencyService,
     private readonly history: HistoryService,
+    private readonly records: RecordsService,
   ) {}
 
   async getSummary(
@@ -45,23 +47,25 @@ export class DashboardService {
     try {
       // Independent domain reads, not a cross-domain transactional snapshot.
       // Concurrent writes may become visible at slightly different instants.
-      const [calendar, comparison, consistency, recent] = await Promise.all([
-        this.calendar.getDays(userId, {
-          fromDate: query.weekStart,
-          toDate: query.toDate,
-          timezone: query.timezone,
-        }),
-        this.trends.getWeeklyComparison(userId, {
-          weekStart: query.weekStart,
-          timezone: query.timezone,
-        }),
-        this.consistency.getWeeklyConsistency(userId, {
-          fromWeekStart: query.fromWeekStart,
-          toWeekStart: query.weekStart,
-          timezone: query.timezone,
-        }),
-        this.history.getRecentCompletedWorkouts(userId, { limit: 5 }),
-      ]);
+      const [calendar, comparison, consistency, recent, records] =
+        await Promise.all([
+          this.calendar.getDays(userId, {
+            fromDate: query.weekStart,
+            toDate: query.toDate,
+            timezone: query.timezone,
+          }),
+          this.trends.getWeeklyComparison(userId, {
+            weekStart: query.weekStart,
+            timezone: query.timezone,
+          }),
+          this.consistency.getWeeklyConsistency(userId, {
+            fromWeekStart: query.fromWeekStart,
+            toWeekStart: query.weekStart,
+            timezone: query.timezone,
+          }),
+          this.history.getRecentCompletedWorkouts(userId, { limit: 5 }),
+          this.records.getCurrentRecords(userId, 5),
+        ]);
       const dates = [...iterateCalendarDays(query.weekStart, query.toDate)];
       if (
         calendar.days.length !== 7 ||
@@ -89,6 +93,7 @@ export class DashboardService {
         timezone: query.timezone,
         weekStart: query.weekStart,
         recentWorkouts: recent.items,
+        personalRecords: records.items,
         week: {
           completedWorkouts,
           completedSets: sumCounts(

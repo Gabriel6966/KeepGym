@@ -492,7 +492,7 @@ permanecen centralizadas en funciones puras; no se carga todo el histórico para
 calcular máximos. `test:postgres` comprueba el flujo HTTP, precisión, ownership,
 snapshots y consultas; restaura el catálogo y elimina solo sus datos temporales.
 
-### Récords personales actuales (GYM-013)
+### Récords personales actuales (GYM-013 / GYM-025)
 
 `GET /records/exercises/:exerciseId` requiere Bearer access token y devuelve
 `{ exercise, maxLoadRecord, estimated1RMRecord }` para el usuario autenticado.
@@ -534,6 +534,23 @@ materializa todo el historial ni se ejecutan consultas por sesión/set.
 `test:postgres` verifica el flujo HTTP con dos usuarios,
 desempates, snapshots, precisión y consultas acotadas; restaura el catálogo y
 limpia únicamente los datos temporales.
+
+`GET /records/current` devuelve `{ items: [...] }` con los **holders actuales**
+de MAX_LOAD y ESTIMATED_1RM de todos los ejercicios del usuario. Solo admite
+`limit`: entero entre 1 y 20, default 5; campos desconocidos devuelven 400.
+No es un histórico de eventos de PR: los valores posteriormente superados no
+aparecen. Cada item incluye `type`, `exercise` (`sourceExerciseId`, `name`,
+`slug` del snapshot del set ganador), `valueKg`, `achievedAt`,
+`workoutSessionId`, `setEntryId`, `loadKg` y `reps`. Sin candidatos: `items: []`.
+
+Conserva exactamente las reglas de primera consecución y Epley del endpoint
+individual. Ordena los holders por `achievedAt DESC`, tipo (MAX_LOAD antes de
+ESTIMATED_1RM), `sourceExerciseId ASC`, `setEntryId ASC`, y aplica el límite al
+final, nunca a los sets más recientes. Excluye identidades `sourceExerciseId`
+null sin heurísticas. El catálogo actual, incluso inactivo, no se consulta.
+Dos SELECTs en RepeatableRead obtienen un MAX_LOAD por ejercicio y como máximo
+20 candidatos e1RM por ejercicio; la fórmula permanece en `analytics.math`.
+No crea tablas, eventos, migraciones, índices ni endpoints de escritura.
 
 ## Mediciones corporales
 
@@ -807,7 +824,7 @@ Renombrar/archivar la plantilla o editar el catálogo no reconstruye el pasado.
 Una única consulta selecciona primero las N sesiones y agrega sus series sin
 multiplicar workouts ni duración. Reutiliza índices existentes; sin migración.
 
-## Resumen de dashboard (GYM-023 / GYM-024)
+## Resumen de dashboard (GYM-023 / GYM-024 / GYM-025)
 
 `GET /dashboard/summary` requiere Bearer access token y exactamente `weekStart`
 y `timezone`. `weekStart` es un lunes local real en formato `YYYY-MM-DD`, no un
@@ -831,13 +848,18 @@ Dashboard compone servicios de dominio, sin repository ni SQL propios:
   del usuario, con la misma representación de `/history/recent-workouts`.
   Es actividad reciente general, independiente de `weekStart` (también si se
   selecciona una semana futura). Dashboard no admite `recentLimit`.
+- `personalRecords`: reutiliza RecordsService para hasta cinco holders actuales
+  conseguidos más recientemente, con la misma representación de
+  `/records/current?limit=5`. Es all-time e independiente de `weekStart`, también
+  para semanas futuras. No son eventos históricos de PR ni admite `recordsLimit`.
 
-Los cuatro dominios mantienen ownership y política `COMPLETED`, incluidas sesiones
-sin series. Las lecturas se lanzan en paralelo: cuatro SELECTs fijos, sin N+1 ni
+Los cinco dominios mantienen ownership y política `COMPLETED`; la actividad admite
+sesiones sin series, mientras los records requieren sets elegibles. Las lecturas
+se lanzan en paralelo: seis SELECTs fijos (Records utiliza dos), sin N+1 ni
 transacción compartida entre dominios. Con escrituras concurrentes pueden reflejar
 instantes ligeramente distintos; un fallo no se sustituye por ceros ni resultados
-parciales, tampoco ante un fallo de History. El resumen es factual/read-only, sin
-body summary, PRs, recomendaciones ni interpretación de calidad. No modifica schema,
+parciales, tampoco ante un fallo de History o Records. El resumen es factual/read-only,
+sin body summary, eventos de PR, recomendaciones ni interpretación de calidad. No modifica schema,
 índices ni las ocho migraciones.
 
 ## Calidad y build

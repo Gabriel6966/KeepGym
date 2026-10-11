@@ -7,6 +7,8 @@ import {
   recordExerciseSelect,
   type ExerciseRecordData,
   type RecordCandidate,
+  type CurrentRecordCandidate,
+  type CurrentRecordData,
 } from './records.types';
 
 const candidateColumns = Prisma.sql`
@@ -17,6 +19,46 @@ const candidateColumns = Prisma.sql`
 @Injectable()
 export class RecordsRepository {
   constructor(private readonly prisma: PrismaService) {}
+
+  async findCurrentRecordCandidates(
+    userId: string,
+  ): Promise<CurrentRecordData> {
+    const columns = Prisma.sql`${candidateColumns},
+      e.source_exercise_id AS "sourceExerciseId",
+      e.exercise_name AS "exerciseName", e.exercise_slug AS "exerciseSlug"`;
+    const from = Prisma.sql`
+      FROM workout_sessions w
+      JOIN workout_session_exercises e ON e.workout_session_id = w.id
+      JOIN set_entries s ON s.workout_session_exercise_id = e.id
+      WHERE w.user_id = ${userId}::uuid AND w.status = 'COMPLETED'
+        AND e.source_exercise_id IS NOT NULL AND s.load_kg > 0`;
+    try {
+      return await this.prisma.$transaction(
+        async (tx) => {
+          // Derive all current holders before applying the public feed limit.
+          const maxLoadCandidates = await tx.$queryRaw<
+            CurrentRecordCandidate[]
+          >(Prisma.sql`
+            SELECT DISTINCT ON (e.source_exercise_id) ${columns} ${from}
+            ORDER BY e.source_exercise_id, s.load_kg DESC,
+              s.completed_at ASC, s.id ASC`);
+          // At most twenty candidates per canonical exercise, with the same
+          // first-achievement semantics as the individual Records endpoint.
+          const estimatedCandidates = await tx.$queryRaw<
+            CurrentRecordCandidate[]
+          >(Prisma.sql`
+            SELECT DISTINCT ON (e.source_exercise_id, s.reps) ${columns} ${from}
+              AND s.reps BETWEEN 1 AND ${MAX_ESTIMATED_1RM_REPS}
+            ORDER BY e.source_exercise_id, s.reps, s.load_kg DESC,
+              s.completed_at ASC, s.id ASC`);
+          return { maxLoadCandidates, estimatedCandidates };
+        },
+        { isolationLevel: Prisma.TransactionIsolationLevel.RepeatableRead },
+      );
+    } catch {
+      throw new RecordsPersistenceError();
+    }
+  }
 
   async findExerciseRecordData(
     userId: string,

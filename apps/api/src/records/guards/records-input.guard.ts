@@ -10,7 +10,10 @@ import type { Request } from 'express';
 export class RecordsInputGuard implements CanActivate {
   canActivate(context: ExecutionContext): boolean {
     const request = context.switchToHttp().getRequest<Request>();
-    if (Object.keys(request.query).length > 0)
+    if (
+      context.getHandler().name === 'getExerciseRecords' &&
+      Object.keys(request.query).length > 0
+    )
       throw new BadRequestException(
         'Records does not accept query parameters.',
       );
