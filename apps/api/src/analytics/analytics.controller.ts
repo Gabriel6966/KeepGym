@@ -13,6 +13,7 @@ import type { AccessPrincipal } from '../auth/types/auth.types';
 import { AnalyticsService } from './analytics.service';
 import { AnalyticsRangeQueryDto } from './dto/analytics-range-query.dto';
 import { ExerciseAnalyticsQueryDto } from './dto/exercise-analytics-query.dto';
+import { ExerciseHighlightsQueryDto } from './dto/exercise-highlights-query.dto';
 import { InvalidAnalyticsQueryError } from './errors/invalid-analytics-query.error';
 import { AnalyticsInputGuard } from './guards/analytics-input.guard';
 
@@ -29,6 +30,15 @@ async function analyticsHttp<T>(result: Promise<T>): Promise<T> {
 @UseGuards(AccessTokenGuard, AnalyticsInputGuard)
 export class AnalyticsController {
   constructor(private readonly analytics: AnalyticsService) {}
+  @Get('exercise-highlights')
+  highlights(
+    @CurrentUser() principal: AccessPrincipal,
+    @Query() query: ExerciseHighlightsQueryDto,
+  ) {
+    return analyticsHttp(
+      this.analytics.getExerciseHighlights(principal.userId, query.limit),
+    );
+  }
   @Get('overview')
   overview(
     @CurrentUser() principal: AccessPrincipal,

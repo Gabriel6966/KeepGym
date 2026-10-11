@@ -95,6 +95,10 @@ generados.
   determinista y sin excluir sesiones COMPLETED que no tengan series.
   Los bloques de récords actuales se componen desde RecordsService y no dependen
   de la semana seleccionada.
+  Los exercise highlights se componen desde AnalyticsService: representan latest
+  y previous performances reales, seleccionadas por recencia, no recomendaciones
+  ni Personal Records. Una occurrence sin SetEntry no es performance; sus métricas
+  de fuerza son por occurrence, no máximos all-time.
   El progreso corporal se compone desde el overview all-time de BodyAnalyticsService,
   sin reconstruir cambios ni acceder a BodyMeasurement desde Dashboard; conserva
   el contrato por métrica y las unidades canónicas, independiente de la semana.

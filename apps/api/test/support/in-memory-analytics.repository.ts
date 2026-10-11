@@ -5,6 +5,9 @@ import type {
   ExerciseAnalyticsQuery,
   AnalyticsCandidateRecord,
   AnalyticsPerformanceRecord,
+  ExerciseHighlightData,
+  ExerciseHighlightPerformanceRecord,
+  ExerciseHighlightCandidate,
 } from '../../src/analytics/analytics.types';
 import {
   historyFixture,
@@ -59,9 +62,74 @@ function candidates(
 }
 export class InMemoryAnalyticsRepository implements Pick<
   AnalyticsRepository,
-  'overview' | 'exercise'
+  'overview' | 'exercise' | 'findExerciseHighlightPerformances'
 > {
   constructor(readonly records: OwnedHistory[]) {}
+  async findExerciseHighlightPerformances(
+    userId: string,
+    limit: number,
+  ): Promise<ExerciseHighlightData> {
+    const grouped = new Map<string, AnalyticsPerformanceRecord[]>();
+    for (const session of this.matching(userId, {})) {
+      for (const entry of [...session.exercises].sort(
+        (a, b) => a.position - b.position || a.id.localeCompare(b.id),
+      )) {
+        if (entry.sourceExerciseId === null || entry.sets.length === 0)
+          continue;
+        const rows = grouped.get(entry.sourceExerciseId) ?? [];
+        rows.push({ ...entry, workoutSession: session });
+        grouped.set(entry.sourceExerciseId, rows);
+      }
+    }
+    const selected = [...grouped.values()]
+      .sort(
+        (a, b) =>
+          b[0]!.workoutSession.startedAt.getTime() -
+            a[0]!.workoutSession.startedAt.getTime() ||
+          b[0]!.workoutSession.id.localeCompare(a[0]!.workoutSession.id) ||
+          a[0]!.sourceExerciseId!.localeCompare(b[0]!.sourceExerciseId!),
+      )
+      .slice(0, limit);
+    const performances: ExerciseHighlightPerformanceRecord[] = [];
+    const estimatedCandidates: ExerciseHighlightCandidate[] = [];
+    for (const rows of selected) {
+      for (const [index, row] of rows.slice(0, 2).entries()) {
+        performances.push({
+          sessionExerciseId: row.id,
+          sourceExerciseId: row.sourceExerciseId!,
+          exerciseName: row.exerciseName,
+          exerciseSlug: row.exerciseSlug,
+          workoutSessionId: row.workoutSession.id,
+          startedAt: row.workoutSession.startedAt,
+          performanceRank: index + 1,
+          completedSets: String(row.sets.length),
+          totalReps: String(row.sets.reduce((n, set) => n + set.reps, 0)),
+          totalVolumeKg: row.sets
+            .reduce(
+              (n, set) => n.plus(set.loadKg.mul(set.reps)),
+              new Prisma.Decimal(0),
+            )
+            .toString(),
+          maxLoadKg: Prisma.Decimal.max(
+            ...row.sets.map((set) => set.loadKg),
+          ).toString(),
+        });
+        const byReps = new Map<number, ExerciseHighlightCandidate>();
+        for (const set of row.sets) {
+          if (set.loadKg.lte(0) || set.reps < 1 || set.reps > 20) continue;
+          const previous = byReps.get(set.reps);
+          if (!previous || set.loadKg.gt(previous.loadKg))
+            byReps.set(set.reps, {
+              sessionExerciseId: row.id,
+              loadKg: set.loadKg.toString(),
+              reps: set.reps,
+            });
+        }
+        estimatedCandidates.push(...byReps.values());
+      }
+    }
+    return { performances, estimatedCandidates };
+  }
   private matching(userId: string, range: AnalyticsRange) {
     return this.records
       .filter(

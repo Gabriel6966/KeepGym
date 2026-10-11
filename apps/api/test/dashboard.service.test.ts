@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
 import { test, type TestContext } from 'node:test';
 import { Test } from '@nestjs/testing';
+import { AnalyticsService } from '../src/analytics/analytics.service';
 import { BodyAnalyticsService } from '../src/body-analytics/body-analytics.service';
 import { DashboardService } from '../src/dashboard/dashboard.service';
 import { HistoryService } from '../src/history/history.service';
@@ -29,10 +30,12 @@ async function setup(context: TestContext) {
     consistency = context.mock.method(f.consistency, 'getWeeklyConsistency'),
     history = context.mock.method(f.history, 'getRecentCompletedWorkouts'),
     records = context.mock.method(f.records, 'getCurrentRecords'),
-    bodyAnalytics = context.mock.method(f.bodyAnalytics, 'getOverview');
+    bodyAnalytics = context.mock.method(f.bodyAnalytics, 'getOverview'),
+    analytics = context.mock.method(f.analytics, 'getExerciseHighlights');
   const module = await Test.createTestingModule({
     providers: [
       DashboardService,
+      { provide: AnalyticsService, useValue: f.analytics },
       { provide: BodyAnalyticsService, useValue: f.bodyAnalytics },
       { provide: HistoryService, useValue: f.history },
       { provide: RecordsService, useValue: f.records },
@@ -45,7 +48,15 @@ async function setup(context: TestContext) {
   return {
     ...f,
     service: module.get(DashboardService),
-    calls: { calendar, trends, consistency, history, records, bodyAnalytics },
+    calls: {
+      calendar,
+      trends,
+      consistency,
+      history,
+      records,
+      bodyAnalytics,
+      analytics,
+    },
   };
 }
 void test('dashboard zero activity retains null average/percentages and twelve calendar weeks', async (context) => {
@@ -65,6 +76,7 @@ void test('dashboard sums seven dense days: 4 workouts, 4 sets, 33 reps, 1855.75
     'bodyProgress',
     'comparison',
     'consistency',
+    'exerciseHighlights',
     'personalRecords',
     'recentWorkouts',
     'timezone',
@@ -132,6 +144,8 @@ void test('dashboard derives exact Monday 2026-07-20 from 2026-10-05 minus 77 ca
   assert.deepEqual(result.personalRecords, f.recordsData.items);
   assert.deepEqual(f.calls.bodyAnalytics.mock.calls[0]!.arguments, [f.owner]);
   assert.deepEqual(result.bodyProgress, f.bodyOverviewData);
+  assert.deepEqual(f.calls.analytics.mock.calls[0]!.arguments, [f.owner, 5]);
+  assert.deepEqual(result.exerciseHighlights, f.highlightsData.items);
   assert.deepEqual(f.calls.consistency.mock.calls[0]!.arguments, [
     f.owner,
     {
@@ -159,6 +173,7 @@ void test('dashboard accepts future weeks and canonical timezone without reading
     recentWorkouts: f.recentData.items,
     personalRecords: f.recordsData.items,
     bodyProgress: f.bodyOverviewData,
+    exerciseHighlights: f.highlightsData.items,
   });
 });
 
@@ -236,7 +251,7 @@ void test('dashboard rejects invalid inputs and unsupported calendar boundaries 
   for (const call of Object.values(f.calls))
     assert.equal(call.mock.calls.length, 0);
 });
-void test('dashboard launches all six independent reads before awaiting results', async (context) => {
+void test('dashboard launches all seven independent reads before awaiting results', async (context) => {
   const f = await setup(context);
   let release!: () => void;
   const gate = new Promise<void>((resolve) => {
@@ -266,6 +281,10 @@ void test('dashboard launches all six independent reads before awaiting results'
     await gate;
     return f.bodyOverviewData;
   });
+  f.calls.analytics.mock.mockImplementation(async () => {
+    await gate;
+    return f.highlightsData;
+  });
   const pending = f.service.getSummary(f.owner, input);
   try {
     for (const call of Object.values(f.calls))
@@ -274,6 +293,16 @@ void test('dashboard launches all six independent reads before awaiting results'
     release();
   }
   assert.deepEqual((await pending).week, expectedDashboardWeek);
+});
+void test('empty exercise highlights preserve the other populated dashboard sections', async (context) => {
+  const f = await setup(context);
+  f.calls.analytics.mock.mockImplementation(async () => ({ items: [] }));
+  const result = await f.service.getSummary(f.owner, input);
+  assert.deepEqual(result.exerciseHighlights, []);
+  assert.deepEqual(result.week, expectedDashboardWeek);
+  assert.deepEqual(result.recentWorkouts, f.recentData.items);
+  assert.deepEqual(result.personalRecords, f.recordsData.items);
+  assert.deepEqual(result.bodyProgress, f.bodyOverviewData);
 });
 void test('dashboard sanitizes each failing subservice instead of substituting zeros', async (context) => {
   const f = await setup(context);

@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto';
+import type { PublicExerciseHighlights } from '../../src/analytics/analytics.types';
 import type { PublicBodyAnalyticsOverview } from '../../src/body-analytics/body-analytics.types';
 import { addCalendarDays } from '../../src/common/calendar-date';
 import { shiftLocalMonday } from '../../src/common/calendar-week';
@@ -90,6 +91,7 @@ export function emptyDashboard(input = dashboardInput): PublicDashboardSummary {
     recentWorkouts: [],
     personalRecords: [],
     bodyProgress: emptyBodyOverview(),
+    exerciseHighlights: [],
     week: {
       completedWorkouts: 0,
       completedSets: 0,
@@ -128,6 +130,27 @@ export function emptyBodyOverview(): PublicBodyAnalyticsOverview {
 }
 export function dashboardServices() {
   const owner = randomUUID();
+  const highlightsData: PublicExerciseHighlights = {
+    items: [
+      {
+        exercise: {
+          sourceExerciseId: randomUUID(),
+          name: 'Latest exercise snapshot',
+          slug: 'latest-snapshot',
+        },
+        latest: {
+          workoutSessionId: randomUUID(),
+          startedAt: new Date('2026-09-20T10:00:00Z'),
+          completedSets: 3,
+          totalReps: 26,
+          totalVolumeKg: 1280,
+          maxLoadKg: 80,
+          bestEstimated1RMKg: 101.33,
+        },
+        previous: null,
+      },
+    ],
+  };
   const bodyOverviewData: PublicBodyAnalyticsOverview = {
     ...emptyBodyOverview(),
     weightKg: {
@@ -232,6 +255,20 @@ export function dashboardServices() {
     userId === owner && week === dashboardInput.weekStart;
   return {
     owner,
+    highlightsData,
+    analytics: {
+      async getExerciseHighlights(
+        userId: string,
+        limit: number,
+      ): Promise<PublicExerciseHighlights> {
+        return {
+          items:
+            userId === owner
+              ? structuredClone(highlightsData.items.slice(0, limit))
+              : [],
+        };
+      },
+    },
     bodyOverviewData,
     bodyAnalytics: {
       async getOverview(userId: string): Promise<PublicBodyAnalyticsOverview> {

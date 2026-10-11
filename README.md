@@ -492,6 +492,38 @@ permanecen centralizadas en funciones puras; no se carga todo el histórico para
 calcular máximos. `test:postgres` comprueba el flujo HTTP, precisión, ownership,
 snapshots y consultas; restaura el catálogo y elimina solo sus datos temporales.
 
+### Ejercicios realizados recientemente (GYM-027)
+
+`GET /analytics/exercise-highlights` requiere Bearer access token y devuelve
+`{ items }`. Solo admite `limit`: entero decimal estricto entre 1 y 20, con 5
+por defecto; sin paginación. Query desconocida o límite inválido: 400; sin
+autenticación: 401. Sin performances elegibles: 200 con `items: []`.
+
+Selecciona ejercicios distintos por la recencia de su última performance real,
+no por fuerza, progreso o calidad. Una performance es un WorkoutSessionExercise
+de sesión `COMPLETED`, con identidad `sourceExerciseId` no-null y al menos un
+SetEntry. Las occurrences sin series y los estados CANCELLED/IN_PROGRESS quedan
+excluidos. El límite se aplica después de obtener latest por ejercicio.
+
+Cada item contiene `exercise: { sourceExerciseId, name, slug }` del snapshot
+latest, `latest` y `previous` (null si no existe). Ambas performances exponen
+`workoutSessionId`, `startedAt`, `completedSets`, `totalReps`, `totalVolumeKg`,
+`maxLoadKg` y `bestEstimated1RMKg`. Latest/previous se ordenan por startedAt DESC,
+sessionId DESC; occurrences del mismo ejercicio en una sesión por posición ASC,
+id ASC. Los ejercicios se ordenan por latest startedAt DESC, latest sessionId
+DESC y sourceExerciseId ASC.
+
+Las métricas son por performance, no Personal Records: un máximo histórico de
+100 kg no sustituye latest de 80 kg. El volumen es carga externa × reps;
+bodyweight cuenta sets/reps, con volumen y carga máxima 0. Epley reutiliza
+analytics.math, compara sin redondear y se presenta con dos decimales; sin carga
+positiva y 1–20 reps devuelve null. No hay deltas, ranking ni recomendaciones.
+
+Dos SELECTs parametrizados en RepeatableRead seleccionan los aggregates de
+latest/previous y hasta 20 candidatos e1RM por performance. El número de lecturas
+es fijo incluso sin datos. No se consulta Exercise/Template actual ni se crean
+tablas, índices o migraciones.
+
 ### Récords personales actuales (GYM-013 / GYM-025)
 
 `GET /records/exercises/:exerciseId` requiere Bearer access token y devuelve
@@ -824,7 +856,7 @@ Renombrar/archivar la plantilla o editar el catálogo no reconstruye el pasado.
 Una única consulta selecciona primero las N sesiones y agrega sus series sin
 multiplicar workouts ni duración. Reutiliza índices existentes; sin migración.
 
-## Resumen de dashboard (GYM-023 / GYM-024 / GYM-025 / GYM-026)
+## Resumen de dashboard (GYM-023 / GYM-024 / GYM-025 / GYM-026 / GYM-027)
 
 `GET /dashboard/summary` requiere Bearer access token y exactamente `weekStart`
 y `timezone`. `weekStart` es un lunes local real en formato `YYYY-MM-DD`, no un
@@ -859,15 +891,20 @@ Dashboard compone servicios de dominio, sin repository ni SQL propios:
   BodyAnalytics. La ausencia se representa con `null`, no con cero. Las unidades
   siguen siendo kg/cm/%; es independiente de `weekStart`, también para semanas
   futuras, sin BMI, objetivos, conversión imperial ni interpretación cualitativa.
+- `exerciseHighlights`: reutiliza AnalyticsService con límite fijo 5 y el mismo
+  contrato de `/analytics/exercise-highlights?limit=5`. Son ejercicios realizados
+  recientemente con latest/previous reales, no PRs ni recomendaciones. Es
+  independiente de la semana seleccionada, también para semanas futuras;
+  sin performances devuelve `[]`. No admite `highlightsLimit`.
 
-Los seis dominios mantienen ownership. Las métricas de entrenamiento usan
+Los siete dominios mantienen ownership. Las métricas de entrenamiento usan
 `COMPLETED`; la actividad admite sesiones sin series y los records requieren sets
 elegibles. El progreso corporal procede exclusivamente de BodyMeasurement a través
-de BodyAnalytics. Las lecturas se lanzan en paralelo: siete SELECTs fijos
-(Records utiliza dos; BodyAnalytics overview, uno), sin N+1 ni
+de BodyAnalytics. Las lecturas se lanzan en paralelo: nueve SELECTs fijos
+(Records y exercise highlights utilizan dos cada uno; los demás, uno), sin N+1 ni
 transacción compartida entre dominios. Con escrituras concurrentes pueden reflejar
 instantes ligeramente distintos; un fallo no se sustituye por ceros ni resultados
-parciales, tampoco ante un fallo de History, Records o BodyAnalytics. El resumen es factual/read-only,
+parciales, tampoco ante un fallo de History, Records, BodyAnalytics o Analytics. El resumen es factual/read-only,
 sin eventos de PR, recomendaciones ni interpretación de calidad. No modifica schema,
 índices ni las ocho migraciones.
 

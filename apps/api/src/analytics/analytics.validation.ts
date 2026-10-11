@@ -12,6 +12,12 @@ export function validateAnalyticsIds(...ids: string[]): void {
   if (ids.some((id) => typeof id !== 'string' || !isUUID(id)))
     throw new InvalidAnalyticsQueryError('Identifiers must be UUIDs.');
 }
+export function validateExerciseHighlightsLimit(limit: number): void {
+  if (!Number.isInteger(limit) || limit < 1 || limit > 20)
+    throw new InvalidAnalyticsQueryError(
+      'Limit must be an integer between 1 and 20.',
+    );
+}
 export function normalizeAnalyticsRange(
   input: AnalyticsRangeInput,
 ): AnalyticsRange {
