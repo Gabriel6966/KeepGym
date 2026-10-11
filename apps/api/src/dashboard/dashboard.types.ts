@@ -1,4 +1,5 @@
 import type { PublicRecentWorkout } from '../history/history.types';
+import type { PublicCurrentRecord } from '../records/records.types';
 
 export interface DashboardSummaryInput {
   weekStart: string;
@@ -18,6 +19,7 @@ export interface DashboardComparisonMetric {
 
 export interface PublicDashboardSummary extends DashboardSummaryInput {
   recentWorkouts: PublicRecentWorkout[];
+  personalRecords: PublicCurrentRecord[];
   week: {
     completedWorkouts: number;
     completedSets: number;

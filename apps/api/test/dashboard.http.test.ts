@@ -8,6 +8,7 @@ import { JwtService } from '@nestjs/jwt';
 import { Test } from '@nestjs/testing';
 import { AppModule } from '../src/app.module';
 import { HistoryService } from '../src/history/history.service';
+import { RecordsService } from '../src/records/records.service';
 import { environmentConfig } from '../src/config/environment.config';
 import { configureHttp } from '../src/http/configure-http';
 import { PrismaService } from '../src/prisma/prisma.service';
@@ -43,6 +44,8 @@ before(async () => {
     .useValue(f.consistency)
     .overrideProvider(HistoryService)
     .useValue(f.history)
+    .overrideProvider(RecordsService)
+    .useValue(f.records)
     .compile();
   app = module.createNestApplication({ logger: false });
   configureHttp(app);
@@ -95,6 +98,10 @@ void test('dashboard HTTP requires valid JWT and leaves health available', async
 });
 void test('dashboard HTTP composes exact week, comparison and 12-week consistency without leaking another principal', async () => {
   const result = await get();
+  assert.deepEqual(
+    result.personalRecords,
+    JSON.parse(JSON.stringify(f.recordsData.items)) as unknown,
+  );
   assert.deepEqual(result.week, expectedDashboardWeek);
   assert.deepEqual(
     result.recentWorkouts,
@@ -139,6 +146,7 @@ void test('dashboard HTTP rejects missing/duplicate query fields and malformed/u
       'page',
       'limit',
       'recentLimit',
+      'recordsLimit',
       'foo',
     ].map((key) => ({ [key]: '1' })),
   ])
@@ -151,6 +159,7 @@ void test('dashboard HTTP permits future Mondays and preserves zero baseline nul
   assert.deepEqual(await get(new URLSearchParams(future)), {
     ...emptyDashboard(future),
     recentWorkouts: JSON.parse(JSON.stringify(f.recentData.items)) as unknown,
+    personalRecords: JSON.parse(JSON.stringify(f.recordsData.items)) as unknown,
   });
 });
 void test('dashboard HTTP has no write endpoints and refuses GET body selectors', async () => {
@@ -196,6 +205,16 @@ void test('dashboard HTTP never replaces a subservice failure or invalid window 
 
 void test('dashboard HTTP never hides a History failure as an empty recent feed', async (context) => {
   context.mock.method(f.history, 'getRecentCompletedWorkouts', async () => {
+    throw new Error('private SQL');
+  });
+  assert.deepEqual(await get(undefined, 500), {
+    statusCode: 500,
+    message: 'Internal server error',
+  });
+});
+
+void test('dashboard HTTP never hides a Records failure as an empty personal-record block', async (context) => {
+  context.mock.method(f.records, 'getCurrentRecords', async () => {
     throw new Error('private SQL');
   });
   assert.deepEqual(await get(undefined, 500), {

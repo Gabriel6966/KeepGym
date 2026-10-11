@@ -6,6 +6,8 @@ import type {
   RecordCandidate,
   RecordExerciseSnapshot,
   ExerciseRecordData,
+  CurrentRecordCandidate,
+  CurrentRecordData,
 } from '../../src/records/records.types';
 
 export interface OwnedRecordOccurrence {
@@ -89,9 +91,42 @@ function firstMax(a: RecordCandidate, b: RecordCandidate): number {
 }
 export class InMemoryRecordsRepository implements Pick<
   RecordsRepository,
-  'findExerciseRecordData'
+  'findExerciseRecordData' | 'findCurrentRecordCandidates'
 > {
   constructor(readonly occurrences: OwnedRecordOccurrence[]) {}
+  findCurrentRecordCandidates(userId: string): Promise<CurrentRecordData> {
+    const sets = this.occurrences
+      .flatMap((entry) => {
+        const sourceExerciseId = entry.snapshot.sourceExerciseId;
+        if (
+          entry.userId !== userId ||
+          entry.status !== 'COMPLETED' ||
+          sourceExerciseId === null
+        )
+          return [];
+        return entry.sets
+          .filter((set) => new Prisma.Decimal(set.loadKg).gt(0))
+          .map((set) => ({
+            ...set,
+            sourceExerciseId,
+            exerciseName: entry.snapshot.exerciseName,
+            exerciseSlug: entry.snapshot.exerciseSlug,
+          }));
+      })
+      .sort(firstMax);
+    const max = new Map<string, CurrentRecordCandidate>();
+    const estimated = new Map<string, CurrentRecordCandidate>();
+    for (const set of sets) {
+      if (!max.has(set.sourceExerciseId)) max.set(set.sourceExerciseId, set);
+      const key = `${set.sourceExerciseId}:${set.reps}`;
+      if (set.reps >= 1 && set.reps <= 20 && !estimated.has(key))
+        estimated.set(key, set);
+    }
+    return Promise.resolve({
+      maxLoadCandidates: [...max.values()],
+      estimatedCandidates: [...estimated.values()],
+    });
+  }
   findExerciseRecordData(
     userId: string,
     exerciseId: string,

@@ -5,6 +5,7 @@ import { test, type TestContext } from 'node:test';
 import { Test } from '@nestjs/testing';
 import { DashboardService } from '../src/dashboard/dashboard.service';
 import { HistoryService } from '../src/history/history.service';
+import { RecordsService } from '../src/records/records.service';
 import { DashboardReadError } from '../src/dashboard/errors/dashboard-read.error';
 import { InvalidDashboardQueryError } from '../src/dashboard/errors/invalid-dashboard-query.error';
 import { TrainingCalendarService } from '../src/training-calendar/training-calendar.service';
@@ -24,11 +25,13 @@ async function setup(context: TestContext) {
   const calendar = context.mock.method(f.calendar, 'getDays'),
     trends = context.mock.method(f.trends, 'getWeeklyComparison'),
     consistency = context.mock.method(f.consistency, 'getWeeklyConsistency'),
-    history = context.mock.method(f.history, 'getRecentCompletedWorkouts');
+    history = context.mock.method(f.history, 'getRecentCompletedWorkouts'),
+    records = context.mock.method(f.records, 'getCurrentRecords');
   const module = await Test.createTestingModule({
     providers: [
       DashboardService,
       { provide: HistoryService, useValue: f.history },
+      { provide: RecordsService, useValue: f.records },
       { provide: TrainingCalendarService, useValue: f.calendar },
       { provide: TrainingTrendsService, useValue: f.trends },
       { provide: TrainingConsistencyService, useValue: f.consistency },
@@ -38,7 +41,7 @@ async function setup(context: TestContext) {
   return {
     ...f,
     service: module.get(DashboardService),
-    calls: { calendar, trends, consistency, history },
+    calls: { calendar, trends, consistency, history, records },
   };
 }
 void test('dashboard zero activity retains null average/percentages and twelve calendar weeks', async (context) => {
@@ -57,6 +60,7 @@ void test('dashboard sums seven dense days: 4 workouts, 4 sets, 33 reps, 1855.75
   assert.deepEqual(Object.keys(result).sort(), [
     'comparison',
     'consistency',
+    'personalRecords',
     'recentWorkouts',
     'timezone',
     'week',
@@ -119,6 +123,8 @@ void test('dashboard derives exact Monday 2026-07-20 from 2026-10-05 minus 77 ca
     { limit: 5 },
   ]);
   assert.deepEqual(result.recentWorkouts, f.recentData.items);
+  assert.deepEqual(f.calls.records.mock.calls[0]!.arguments, [f.owner, 5]);
+  assert.deepEqual(result.personalRecords, f.recordsData.items);
   assert.deepEqual(f.calls.consistency.mock.calls[0]!.arguments, [
     f.owner,
     {
@@ -144,6 +150,17 @@ void test('dashboard accepts future weeks and canonical timezone without reading
   assert.deepEqual(await f.service.getSummary(f.owner, future), {
     ...emptyDashboard(future),
     recentWorkouts: f.recentData.items,
+    personalRecords: f.recordsData.items,
+  });
+});
+
+void test('empty current records do not change populated week, history, comparison or consistency', async (context) => {
+  const f = await setup(context);
+  const before = await f.service.getSummary(f.owner, input);
+  f.recordsData.items = [];
+  assert.deepEqual(await f.service.getSummary(f.owner, input), {
+    ...before,
+    personalRecords: [],
   });
 });
 void test('dashboard rejects invalid inputs and unsupported calendar boundaries before domain calls', async (context) => {
@@ -169,7 +186,7 @@ void test('dashboard rejects invalid inputs and unsupported calendar boundaries 
   for (const call of Object.values(f.calls))
     assert.equal(call.mock.calls.length, 0);
 });
-void test('dashboard launches all four independent reads before awaiting results', async (context) => {
+void test('dashboard launches all five independent reads before awaiting results', async (context) => {
   const f = await setup(context);
   let release!: () => void;
   const gate = new Promise<void>((resolve) => {
@@ -190,6 +207,10 @@ void test('dashboard launches all four independent reads before awaiting results
   f.calls.history.mock.mockImplementation(async () => {
     await gate;
     return f.recentData;
+  });
+  f.calls.records.mock.mockImplementation(async () => {
+    await gate;
+    return f.recordsData;
   });
   const pending = f.service.getSummary(f.owner, input);
   try {

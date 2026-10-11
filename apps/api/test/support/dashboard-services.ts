@@ -14,6 +14,7 @@ import type {
   WeeklyConsistencyInput,
 } from '../../src/training-consistency/training-consistency.types';
 import type { PublicDashboardSummary } from '../../src/dashboard/dashboard.types';
+import type { PublicCurrentRecords } from '../../src/records/records.types';
 import type {
   PublicRecentWorkouts,
   RecentWorkoutsQueryInput,
@@ -86,6 +87,7 @@ export function emptyDashboard(input = dashboardInput): PublicDashboardSummary {
   return {
     ...input,
     recentWorkouts: [],
+    personalRecords: [],
     week: {
       completedWorkouts: 0,
       completedSets: 0,
@@ -114,6 +116,24 @@ export function emptyDashboard(input = dashboardInput): PublicDashboardSummary {
 }
 export function dashboardServices() {
   const owner = randomUUID();
+  const recordsData: PublicCurrentRecords = {
+    items: [
+      {
+        type: 'MAX_LOAD',
+        exercise: {
+          sourceExerciseId: randomUUID(),
+          name: 'Record snapshot',
+          slug: 'record-snapshot',
+        },
+        valueKg: 100,
+        achievedAt: new Date('2026-09-01T10:00:00Z'),
+        workoutSessionId: randomUUID(),
+        setEntryId: randomUUID(),
+        loadKg: 100,
+        reps: 5,
+      },
+    ],
+  };
   const recentData: PublicRecentWorkouts = {
     items: [
       {
@@ -187,6 +207,20 @@ export function dashboardServices() {
     userId === owner && week === dashboardInput.weekStart;
   return {
     owner,
+    recordsData,
+    records: {
+      async getCurrentRecords(
+        userId: string,
+        limit: number,
+      ): Promise<PublicCurrentRecords> {
+        return {
+          items:
+            userId === owner
+              ? structuredClone(recordsData.items.slice(0, limit))
+              : [],
+        };
+      },
+    },
     recentData,
     history: {
       async getRecentCompletedWorkouts(

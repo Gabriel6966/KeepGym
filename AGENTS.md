@@ -66,6 +66,8 @@ generados.
 - Personal Records se deriva de SetEntry de sesiones COMPLETED, sin persistir
   PRs prematuramente. El record holder es la primera consecución del valor
   máximo actual según completedAt y setId, no la repetición más reciente.
+  Un feed de holders actuales no representa eventos históricos de PR; ordena por
+  primera consecución y usa la metadata snapshot del set ganador, no el catálogo actual.
 - Los agregados temporales de entrenamiento definen explícitamente su timezone
   y usan startedAt de sesiones COMPLETED; los agregados semanales no se persisten.
   Las tendencias por ejercicio requieren SetEntry real; una occurrence sin series
@@ -91,6 +93,8 @@ generados.
   los fallos de subservicios no se convierten en ceros o resultados parciales.
   La actividad reciente se compone desde HistoryService, con orden histórico
   determinista y sin excluir sesiones COMPLETED que no tengan series.
+  Los bloques de récords actuales se componen desde RecordsService y no dependen
+  de la semana seleccionada.
 
 ## Seguridad
 
