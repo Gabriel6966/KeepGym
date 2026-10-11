@@ -28,7 +28,7 @@ function string(value: unknown): string {
   return value as string;
 }
 
-void test('Dashboard body progress PostgreSQL HTTP: all-time partial sequences, ownership, canonical units and nine domain reads', async (context) => {
+void test('Dashboard body progress PostgreSQL HTTP: all-time partial sequences, ownership, canonical units and ten domain reads', async (context) => {
   const connectionString = process.env.DATABASE_URL;
   assert.ok(connectionString);
   const db = new PrismaClient({
@@ -136,7 +136,7 @@ void test('Dashboard body progress PostgreSQL HTTP: all-time partial sequences, 
       async () => {
         await request(dashboard(), undefined, undefined, 401);
         assert.deepEqual(
-          await observed(dashboard(), a.token, 9),
+          await observed(dashboard(), a.token, 10),
           emptyDashboard(),
         );
         assert.deepEqual(
@@ -216,14 +216,14 @@ void test('Dashboard body progress PostgreSQL HTTP: all-time partial sequences, 
       async () => {
         const overview = await observed('/body-analytics/overview', a.token, 1);
         assert.deepEqual(overview, expected);
-        const result = await observed(dashboard(), a.token, 9);
+        const result = await observed(dashboard(), a.token, 10);
         assert.deepEqual(result, {
           ...emptyDashboard(),
           bodyProgress: overview,
         });
         assert.deepEqual(result.bodyProgress, expected);
         assert.deepEqual(
-          await observed(dashboard(), b.token, 9),
+          await observed(dashboard(), b.token, 10),
           emptyDashboard(),
         );
       },
@@ -252,7 +252,7 @@ void test('Dashboard body progress PostgreSQL HTTP: all-time partial sequences, 
           201,
         );
         assert.deepEqual(
-          (await observed(dashboard(), a.token, 9)).bodyProgress,
+          (await observed(dashboard(), a.token, 10)).bodyProgress,
           expected,
         );
         const foreignOverview = await observed(
@@ -266,7 +266,7 @@ void test('Dashboard body progress PostgreSQL HTTP: all-time partial sequences, 
           assert.notDeepEqual(foreignOverview[metric], expected[metric]);
         }
         assert.deepEqual(
-          (await observed(dashboard(), b.token, 9)).bodyProgress,
+          (await observed(dashboard(), b.token, 10)).bodyProgress,
           foreignOverview,
         );
       },
@@ -278,7 +278,7 @@ void test('Dashboard body progress PostgreSQL HTTP: all-time partial sequences, 
           const result = await observed(
             dashboard('2099-01-05', timezone),
             a.token,
-            9,
+            10,
           );
           assert.deepEqual(result, {
             ...emptyDashboard({ weekStart: '2099-01-05', timezone }),
@@ -334,7 +334,7 @@ void test('Dashboard body progress PostgreSQL HTTP: all-time partial sequences, 
         >`SELECT COUNT(*) FROM _prisma_migrations WHERE finished_at IS NOT NULL`;
         assert.equal(applied[0]!.count, 8n);
         context.diagnostic(
-          'Observed real HTTP domain SELECTs: BodyAnalytics overview=1; Dashboard=9 (auth/setup/transaction control excluded). No new persistence or per-metric round trips.',
+          'Observed real HTTP domain SELECTs: BodyAnalytics overview=1; Dashboard=10 (auth/setup/transaction control excluded). No new persistence or per-metric round trips.',
         );
       },
     );

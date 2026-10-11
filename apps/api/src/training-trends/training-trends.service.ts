@@ -16,6 +16,8 @@ import { compareMetric } from './training-trends.math';
 import type {
   PublicExerciseWeeklyTrends,
   PublicMuscleGroupWeeklyBucket,
+  PublicMuscleGroupMetrics,
+  MuscleGroupWeeklyTrendsRecord,
   PublicMuscleGroupWeeklyTrends,
   PublicWeeklyTrainingTrends,
   PublicWeeklyComparison,
@@ -29,6 +31,40 @@ function count(value: string): number {
   if (!/^\d+$/.test(value) || !Number.isSafeInteger(result))
     throw new TrainingTrendsPersistenceError();
   return result;
+}
+
+function muscleBuckets(
+  rows: readonly MuscleGroupWeeklyTrendsRecord[],
+): PublicMuscleGroupWeeklyBucket[] {
+  const buckets = new Map<string, PublicMuscleGroupWeeklyBucket>();
+  for (const row of rows) {
+    const muscleGroup = Object.values(MuscleGroup).find(
+      (value) => value === row.muscleGroup,
+    );
+    if (muscleGroup === undefined) throw new TrainingTrendsPersistenceError();
+    const bucket = buckets.get(row.weekStart) ?? {
+      weekStart: row.weekStart,
+      muscleGroups: [],
+    };
+    bucket.muscleGroups.push({
+      muscleGroup,
+      completedWorkouts: count(row.completedWorkouts),
+      completedSets: count(row.completedSets),
+      totalReps: count(row.totalReps),
+      totalVolumeKg: roundMetric(row.totalVolumeKg),
+    });
+    buckets.set(row.weekStart, bucket);
+  }
+  // ASCII ordering matches SQL COLLATE C, independent of locale or enum order.
+  const compare = (a: string, b: string) => (a < b ? -1 : a > b ? 1 : 0);
+  return [...buckets.values()]
+    .sort((a, b) => compare(a.weekStart, b.weekStart))
+    .map((bucket) => ({
+      weekStart: bucket.weekStart,
+      muscleGroups: bucket.muscleGroups.sort((a, b) =>
+        compare(a.muscleGroup, b.muscleGroup),
+      ),
+    }));
 }
 
 @Injectable()
@@ -102,41 +138,31 @@ export class TrainingTrendsService {
       query,
     );
     try {
-      const buckets = new Map<string, PublicMuscleGroupWeeklyBucket>();
-      for (const row of rows) {
-        const muscleGroup = Object.values(MuscleGroup).find(
-          (value) => value === row.muscleGroup,
-        );
-        if (muscleGroup === undefined)
-          throw new TrainingTrendsPersistenceError();
-        const bucket = buckets.get(row.weekStart) ?? {
-          weekStart: row.weekStart,
-          muscleGroups: [],
-        };
-        bucket.muscleGroups.push({
-          muscleGroup,
-          completedWorkouts: count(row.completedWorkouts),
-          completedSets: count(row.completedSets),
-          totalReps: count(row.totalReps),
-          totalVolumeKg: roundMetric(row.totalVolumeKg),
-        });
-        buckets.set(row.weekStart, bucket);
-      }
-      // ASCII ordering matches SQL COLLATE C, independent of process locale or enum order.
-      const compare = (a: string, b: string) => (a < b ? -1 : a > b ? 1 : 0);
       return {
         timezone: query.timezone,
         from: query.from.toISOString(),
         to: query.to.toISOString(),
-        buckets: [...buckets.values()]
-          .sort((a, b) => compare(a.weekStart, b.weekStart))
-          .map((bucket) => ({
-            weekStart: bucket.weekStart,
-            muscleGroups: bucket.muscleGroups.sort((a, b) =>
-              compare(a.muscleGroup, b.muscleGroup),
-            ),
-          })),
+        buckets: muscleBuckets(rows),
       };
+    } catch {
+      throw new TrainingTrendsPersistenceError();
+    }
+  }
+
+  async getMuscleGroupWeek(
+    userId: string,
+    input: WeeklyComparisonInput,
+  ): Promise<PublicMuscleGroupMetrics[]> {
+    const query = normalizeWeeklyComparison(userId, input);
+    try {
+      const rows = await this.repository.findMuscleGroupWeeklyTrends(userId, {
+        weekStart: query.weekStart,
+        timezone: query.timezone,
+      });
+      const buckets = muscleBuckets(rows);
+      if (buckets.some((bucket) => bucket.weekStart !== query.weekStart))
+        throw new TrainingTrendsPersistenceError();
+      return buckets[0]?.muscleGroups ?? [];
     } catch {
       throw new TrainingTrendsPersistenceError();
     }

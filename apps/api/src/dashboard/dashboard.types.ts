@@ -2,6 +2,7 @@ import type { PublicRecentWorkout } from '../history/history.types';
 import type { PublicCurrentRecord } from '../records/records.types';
 import type { PublicBodyAnalyticsOverview } from '../body-analytics/body-analytics.types';
 import type { PublicExerciseHighlight } from '../analytics/analytics.types';
+import type { PublicMuscleGroupMetrics } from '../training-trends/training-trends.types';
 
 export interface DashboardSummaryInput {
   weekStart: string;
@@ -24,6 +25,7 @@ export interface PublicDashboardSummary extends DashboardSummaryInput {
   personalRecords: PublicCurrentRecord[];
   bodyProgress: PublicBodyAnalyticsOverview;
   exerciseHighlights: PublicExerciseHighlight[];
+  muscleGroups: PublicMuscleGroupMetrics[];
   week: {
     completedWorkouts: number;
     completedSets: number;

@@ -856,7 +856,7 @@ Renombrar/archivar la plantilla o editar el catálogo no reconstruye el pasado.
 Una única consulta selecciona primero las N sesiones y agrega sus series sin
 multiplicar workouts ni duración. Reutiliza índices existentes; sin migración.
 
-## Resumen de dashboard (GYM-023 / GYM-024 / GYM-025 / GYM-026 / GYM-027)
+## Resumen de dashboard (GYM-023 / GYM-024 / GYM-025 / GYM-026 / GYM-027 / GYM-028)
 
 `GET /dashboard/summary` requiere Bearer access token y exactamente `weekStart`
 y `timezone`. `weekStart` es un lunes local real en formato `YYYY-MM-DD`, no un
@@ -896,15 +896,31 @@ Dashboard compone servicios de dominio, sin repository ni SQL propios:
   recientemente con latest/previous reales, no PRs ni recomendaciones. Es
   independiente de la semana seleccionada, también para semanas futuras;
   sin performances devuelve `[]`. No admite `highlightsLimit`.
+- `muscleGroups`: actividad muscular factual de la semana local seleccionada,
+  compuesta desde TrainingTrendsService y con el mismo tipo público de GYM-018.
+  Solo sesiones `COMPLETED` y SetEntry reales; cada serie se atribuye únicamente
+  al `primaryMuscle` histórico, ignorando secondaryMuscles. Cuenta workouts
+  distintos por grupo, sets, reps y volumen externo en kg (dos decimales).
+  Bodyweight aporta sets/reps/workout, con volumen cero; occurrences sin series
+  no contribuyen. Devuelve solo grupos activos, en orden ASCII, sin límites,
+  porcentajes, rankings ni recomendaciones. Una semana vacía/futura sin actividad
+  devuelve `[]`; a diferencia de los bloques históricos globales, depende de
+  `weekStart` y `timezone`. No acepta `muscleLimit` ni `includeMuscles`.
+
+La capacidad interna por semana reutiliza la agregación muscular existente con
+límites `[lunes local 00:00, lunes siguiente local 00:00)`. PostgreSQL resuelve
+cada medianoche usando la timezone IANA, sin asumir 168 horas al cruzar DST.
+El endpoint directo `/training-trends/muscle-groups/weekly` conserva `from/to`
+inclusivos como instantes y su contrato público anterior.
 
 Los siete dominios mantienen ownership. Las métricas de entrenamiento usan
 `COMPLETED`; la actividad admite sesiones sin series y los records requieren sets
 elegibles. El progreso corporal procede exclusivamente de BodyMeasurement a través
-de BodyAnalytics. Las lecturas se lanzan en paralelo: nueve SELECTs fijos
+de BodyAnalytics. Las ocho operaciones se lanzan en paralelo: diez SELECTs fijos
 (Records y exercise highlights utilizan dos cada uno; los demás, uno), sin N+1 ni
 transacción compartida entre dominios. Con escrituras concurrentes pueden reflejar
 instantes ligeramente distintos; un fallo no se sustituye por ceros ni resultados
-parciales, tampoco ante un fallo de History, Records, BodyAnalytics o Analytics. El resumen es factual/read-only,
+parciales, tampoco ante un fallo del snapshot muscular. El resumen es factual/read-only,
 sin eventos de PR, recomendaciones ni interpretación de calidad. No modifica schema,
 índices ni las ocho migraciones.
 

@@ -127,3 +127,59 @@ void test('muscle SQL errors become sanitized persistence errors, never false em
       error.cause === undefined,
   );
 });
+void test('local-week muscle read reuses the exact aggregation with parameterized calendar midnights and exclusive next Monday', async (context) => {
+  const f = await setup(context),
+    owner = randomUUID();
+  for (const weekStart of ['2026-03-23', '2026-10-19']) {
+    await f.repository.findMuscleGroupWeeklyTrends(owner, {
+      weekStart,
+      timezone: range.timezone,
+    });
+    const sql = f.sql.mock.calls.at(-1)!.arguments[0];
+    assert.deepEqual(sql.values, [
+      range.timezone,
+      owner,
+      weekStart,
+      range.timezone,
+      weekStart,
+      range.timezone,
+    ]);
+    assert.match(
+      sql.text,
+      /w.started_at >= \(\$3::date::timestamp AT TIME ZONE \$4\)/,
+    );
+    assert.match(
+      sql.text,
+      /w.started_at < \(\(\$5::date \+ 7\)::timestamp AT TIME ZONE \$6\)/,
+    );
+    assert.match(sql.text, /COUNT\(DISTINCT w.id\)/);
+    assert.match(sql.text, /e.primary_muscle::text COLLATE "C"/);
+    assert.match(sql.text, /SUM\(s.load_kg \* s.reps\)/);
+    assert.doesNotMatch(
+      sql.text,
+      /168|interval|secondary_muscles|LEFT JOIN|float|NOW\(\)|ended_at/i,
+    );
+  }
+  assert.equal(f.sql.mock.calls.length, 2);
+});
+void test('local-date and timezone inputs cannot become SQL syntax and selected-week failures remain sanitized', async (context) => {
+  const f = await setup(context),
+    unsafe = "' OR TRUE --";
+  await f.repository.findMuscleGroupWeeklyTrends(unsafe, {
+    weekStart: unsafe,
+    timezone: unsafe,
+  });
+  const sql = f.sql.mock.calls[0]!.arguments[0];
+  assert.equal(sql.text.includes(unsafe), false);
+  assert.ok(sql.values.every((value) => value === unsafe));
+  f.sql.mock.mockImplementation(async () => {
+    throw new Error('Private SQL');
+  });
+  await assert.rejects(
+    f.repository.findMuscleGroupWeeklyTrends(randomUUID(), {
+      weekStart: '2026-10-05',
+      timezone: 'Europe/Madrid',
+    }),
+    TrainingTrendsPersistenceError,
+  );
+});

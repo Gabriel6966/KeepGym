@@ -59,6 +59,7 @@ export class DashboardService {
         records,
         bodyProgress,
         highlights,
+        muscleGroups,
       ] = await Promise.all([
         this.calendar.getDays(userId, {
           fromDate: query.weekStart,
@@ -78,6 +79,10 @@ export class DashboardService {
         this.records.getCurrentRecords(userId, 5),
         this.bodyAnalytics.getOverview(userId),
         this.analytics.getExerciseHighlights(userId, 5),
+        this.trends.getMuscleGroupWeek(userId, {
+          weekStart: query.weekStart,
+          timezone: query.timezone,
+        }),
       ]);
       const dates = [...iterateCalendarDays(query.weekStart, query.toDate)];
       if (
@@ -109,6 +114,7 @@ export class DashboardService {
         personalRecords: records.items,
         bodyProgress,
         exerciseHighlights: highlights.items,
+        muscleGroups,
         week: {
           completedWorkouts,
           completedSets: sumCounts(

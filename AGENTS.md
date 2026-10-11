@@ -99,6 +99,8 @@ generados.
   y previous performances reales, seleccionadas por recencia, no recomendaciones
   ni Personal Records. Una occurrence sin SetEntry no es performance; sus métricas
   de fuerza son por occurrence, no máximos all-time.
+  El snapshot muscular del Dashboard compone TrainingTrendsService para la semana
+  local seleccionada; preserva grupos activos y orden determinista, sin rankings.
   El progreso corporal se compone desde el overview all-time de BodyAnalyticsService,
   sin reconstruir cambios ni acceder a BodyMeasurement desde Dashboard; conserva
   el contrato por métrica y las unidades canónicas, independiente de la semana.
