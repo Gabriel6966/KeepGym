@@ -12,6 +12,9 @@ import {
   type ExerciseSummaryRecord,
   type AnalyticsCandidateRecord,
   type ExerciseAnalyticsRecord,
+  type ExerciseHighlightData,
+  type ExerciseHighlightPerformanceRecord,
+  type ExerciseHighlightCandidate,
 } from './analytics.types';
 
 function scope(userId: string, range: AnalyticsRange): Prisma.Sql {
@@ -32,6 +35,73 @@ const occurrenceOrder = [
 @Injectable()
 export class AnalyticsRepository {
   constructor(private readonly prisma: PrismaService) {}
+
+  async findExerciseHighlightPerformances(
+    userId: string,
+    limit: number,
+  ): Promise<ExerciseHighlightData> {
+    try {
+      return await this.prisma.$transaction(
+        async (tx) => {
+          // Rank real performances before limiting distinct canonical exercises.
+          // Only the selected latest/previous occurrences have their sets summed.
+          const performances = await tx.$queryRaw<
+            ExerciseHighlightPerformanceRecord[]
+          >(Prisma.sql`
+            WITH ranked_performances AS (
+              SELECT e.id, e.source_exercise_id, e.exercise_name, e.exercise_slug,
+                w.id AS workout_session_id, w.started_at,
+                ROW_NUMBER() OVER (
+                  PARTITION BY e.source_exercise_id
+                  ORDER BY w.started_at DESC, w.id DESC, e.position ASC, e.id ASC
+                ) AS performance_rank
+              FROM workout_sessions w
+              JOIN workout_session_exercises e ON e.workout_session_id = w.id
+              WHERE ${scope(userId, {})} AND e.source_exercise_id IS NOT NULL
+                AND EXISTS (SELECT 1 FROM set_entries s WHERE s.workout_session_exercise_id = e.id)
+            ), selected_exercises AS (
+              SELECT source_exercise_id FROM ranked_performances
+              WHERE performance_rank = 1
+              ORDER BY started_at DESC, workout_session_id DESC, source_exercise_id ASC
+              LIMIT ${limit}
+            )
+            SELECT p.id AS "sessionExerciseId", p.source_exercise_id AS "sourceExerciseId",
+              p.exercise_name AS "exerciseName", p.exercise_slug AS "exerciseSlug",
+              p.workout_session_id AS "workoutSessionId", p.started_at AS "startedAt",
+              p.performance_rank::int AS "performanceRank",
+              COUNT(s.id)::text AS "completedSets", SUM(s.reps)::text AS "totalReps",
+              SUM(s.load_kg * s.reps)::text AS "totalVolumeKg", MAX(s.load_kg)::text AS "maxLoadKg"
+            FROM ranked_performances p
+            JOIN selected_exercises selected ON selected.source_exercise_id = p.source_exercise_id
+            JOIN set_entries s ON s.workout_session_exercise_id = p.id
+            WHERE p.performance_rank <= 2
+            GROUP BY p.id, p.source_exercise_id, p.exercise_name, p.exercise_slug,
+              p.workout_session_id, p.started_at, p.performance_rank
+            ORDER BY p.source_exercise_id ASC, p.performance_rank ASC`);
+          const ids = performances.map((row) => row.sessionExerciseId);
+          const selected = ids.length
+            ? Prisma.sql`e.id IN (${Prisma.join(ids.map((id) => Prisma.sql`${id}::uuid`))})`
+            : Prisma.sql`FALSE`;
+          // At most 20 candidates per performance. Epley stays in analytics.math.
+          // Even an empty feed has two SELECTs; no per-exercise round trips.
+          const estimatedCandidates = await tx.$queryRaw<
+            ExerciseHighlightCandidate[]
+          >(Prisma.sql`
+            SELECT e.id AS "sessionExerciseId", s.reps, MAX(s.load_kg)::text AS "loadKg"
+            FROM workout_sessions w
+            JOIN workout_session_exercises e ON e.workout_session_id = w.id
+            JOIN set_entries s ON s.workout_session_exercise_id = e.id
+            WHERE ${scope(userId, {})} AND e.source_exercise_id IS NOT NULL AND ${selected}
+              AND s.load_kg > 0 AND s.reps BETWEEN 1 AND ${MAX_ESTIMATED_1RM_REPS}
+            GROUP BY e.id, s.reps ORDER BY e.id ASC, s.reps ASC`);
+          return { performances, estimatedCandidates };
+        },
+        { isolationLevel: Prisma.TransactionIsolationLevel.RepeatableRead },
+      );
+    } catch {
+      throw new AnalyticsPersistenceError();
+    }
+  }
 
   async overview(
     userId: string,

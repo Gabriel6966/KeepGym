@@ -7,6 +7,7 @@ import type { INestApplication } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { Test } from '@nestjs/testing';
 import { AppModule } from '../src/app.module';
+import { AnalyticsService } from '../src/analytics/analytics.service';
 import { BodyAnalyticsService } from '../src/body-analytics/body-analytics.service';
 import { HistoryService } from '../src/history/history.service';
 import { RecordsService } from '../src/records/records.service';
@@ -50,6 +51,8 @@ before(async () => {
     .useValue(f.records)
     .overrideProvider(BodyAnalyticsService)
     .useValue(f.bodyAnalytics)
+    .overrideProvider(AnalyticsService)
+    .useValue(f.analytics)
     .compile();
   app = module.createNestApplication({ logger: false });
   configureHttp(app);
@@ -108,6 +111,10 @@ void test('dashboard HTTP composes exact week, comparison and 12-week consistenc
   );
   assert.deepEqual(result.week, expectedDashboardWeek);
   assert.deepEqual(
+    result.exerciseHighlights,
+    JSON.parse(JSON.stringify(f.highlightsData.items)) as unknown,
+  );
+  assert.deepEqual(
     result.bodyProgress,
     JSON.parse(JSON.stringify(f.bodyOverviewData)) as unknown,
   );
@@ -155,6 +162,7 @@ void test('dashboard HTTP rejects missing/duplicate query fields and malformed/u
       'limit',
       'recentLimit',
       'recordsLimit',
+      'highlightsLimit',
       'bodyFrom',
       'bodyTo',
       'metric',
@@ -172,6 +180,9 @@ void test('dashboard HTTP permits future Mondays and preserves zero baseline nul
     recentWorkouts: JSON.parse(JSON.stringify(f.recentData.items)) as unknown,
     personalRecords: JSON.parse(JSON.stringify(f.recordsData.items)) as unknown,
     bodyProgress: JSON.parse(JSON.stringify(f.bodyOverviewData)) as unknown,
+    exerciseHighlights: JSON.parse(
+      JSON.stringify(f.highlightsData.items),
+    ) as unknown,
   });
 });
 void test('dashboard HTTP preserves independent body timestamps and explicit nulls for partial metrics', async () => {
@@ -260,6 +271,15 @@ void test('dashboard HTTP never hides a Records failure as an empty personal-rec
 void test('dashboard HTTP never hides a BodyAnalytics failure as empty body progress or partial success', async (context) => {
   context.mock.method(f.bodyAnalytics, 'getOverview', async () => {
     throw new Error('private BodyMeasurement SQL');
+  });
+  assert.deepEqual(await get(undefined, 500), {
+    statusCode: 500,
+    message: 'Internal server error',
+  });
+});
+void test('dashboard HTTP never hides an Analytics failure as an empty exercise highlight block', async (context) => {
+  context.mock.method(f.analytics, 'getExerciseHighlights', async () => {
+    throw new Error('private SQL');
   });
   assert.deepEqual(await get(undefined, 500), {
     statusCode: 500,

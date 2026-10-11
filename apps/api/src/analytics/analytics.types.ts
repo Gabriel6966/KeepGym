@@ -149,3 +149,43 @@ export interface ExerciseAnalytics {
   total: number;
   totalPages: number;
 }
+
+export interface ExerciseHighlightPerformanceRecord {
+  sessionExerciseId: string;
+  sourceExerciseId: string;
+  exerciseName: string;
+  exerciseSlug: string;
+  workoutSessionId: string;
+  startedAt: Date;
+  performanceRank: number;
+  completedSets: string;
+  totalReps: string;
+  totalVolumeKg: string;
+  maxLoadKg: string;
+}
+export interface ExerciseHighlightCandidate {
+  sessionExerciseId: string;
+  loadKg: string;
+  reps: number;
+}
+export interface ExerciseHighlightData {
+  performances: ExerciseHighlightPerformanceRecord[];
+  estimatedCandidates: ExerciseHighlightCandidate[];
+}
+export interface PublicExerciseHighlightPerformance {
+  workoutSessionId: string;
+  startedAt: Date;
+  completedSets: number;
+  totalReps: number;
+  totalVolumeKg: number;
+  maxLoadKg: number;
+  bestEstimated1RMKg: number | null;
+}
+export interface PublicExerciseHighlight {
+  exercise: { sourceExerciseId: string; name: string; slug: string };
+  latest: PublicExerciseHighlightPerformance;
+  previous: PublicExerciseHighlightPerformance | null;
+}
+export interface PublicExerciseHighlights {
+  items: PublicExerciseHighlight[];
+}
