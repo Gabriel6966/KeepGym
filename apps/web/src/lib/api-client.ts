@@ -9,6 +9,8 @@ import {
   isWorkoutSession,
   isTemplatePage,
   isSessionPage,
+  isWorkoutTemplate,
+  isTemplateExercise,
 } from '../features/workout/workout.contract';
 import type {
   ResourcePage,
@@ -17,7 +19,16 @@ import type {
   WorkoutSession,
   WorkoutSessionSummary,
   WorkoutTemplate,
+  TemplateExercise,
 } from '../features/workout/workout.types';
+import { isCatalogPage } from '../features/templates/templates.contract';
+import type {
+  AddTemplateExerciseInput,
+  CatalogExercise,
+  CatalogQuery,
+  PlanningInput,
+  TemplateMetadataInput,
+} from '../features/templates/templates.types';
 
 export class ApiError extends Error {
   constructor(
@@ -210,6 +221,122 @@ export class ApiClient {
       { signal },
     );
   }
+  createWorkoutTemplate(
+    input: TemplateMetadataInput,
+  ): Promise<WorkoutTemplate> {
+    return this.request(
+      '/workout-templates',
+      isWorkoutTemplate,
+      this.body('POST', { name: input.name, description: input.description }),
+    );
+  }
+  async getWorkoutTemplate(
+    templateId: string,
+    signal?: AbortSignal,
+  ): Promise<WorkoutTemplate> {
+    const template = await this.request(
+      this.templatePath(templateId),
+      isWorkoutTemplate,
+      { signal },
+    );
+    if (template.id !== templateId) throw new ApiError('response');
+    return template;
+  }
+  updateWorkoutTemplate(
+    templateId: string,
+    input: Partial<TemplateMetadataInput>,
+  ): Promise<WorkoutTemplate> {
+    return this.request(
+      this.templatePath(templateId),
+      isWorkoutTemplate,
+      this.body('PATCH', { name: input.name, description: input.description }),
+    );
+  }
+  archiveWorkoutTemplate(templateId: string): Promise<void> {
+    return this.noContent(this.templatePath(templateId));
+  }
+  addTemplateExercise(
+    templateId: string,
+    input: AddTemplateExerciseInput,
+  ): Promise<TemplateExercise> {
+    return this.request(
+      this.templatePath(templateId) + '/exercises',
+      isTemplateExercise,
+      this.body('POST', {
+        exerciseId: input.exerciseId,
+        ...this.planningBody(input),
+      }),
+    );
+  }
+  updateTemplateExercise(
+    templateId: string,
+    templateExerciseId: string,
+    input: Partial<PlanningInput>,
+  ): Promise<TemplateExercise> {
+    return this.request(
+      this.templatePath(templateId) +
+        '/exercises/' +
+        this.pathSegment(templateExerciseId),
+      isTemplateExercise,
+      this.body('PATCH', this.planningBody(input)),
+    );
+  }
+  removeTemplateExercise(
+    templateId: string,
+    templateExerciseId: string,
+  ): Promise<void> {
+    return this.noContent(
+      this.templatePath(templateId) +
+        '/exercises/' +
+        this.pathSegment(templateExerciseId),
+    );
+  }
+  reorderTemplateExercises(
+    templateId: string,
+    templateExerciseIds: string[],
+  ): Promise<WorkoutTemplate> {
+    return this.request(
+      this.templatePath(templateId) + '/exercises/order',
+      isWorkoutTemplate,
+      this.body('PUT', { templateExerciseIds }),
+    );
+  }
+  listCatalogExercises(
+    query: CatalogQuery = {},
+    signal?: AbortSignal,
+  ): Promise<ResourcePage<CatalogExercise>> {
+    const params = new URLSearchParams({
+      page: String(query.page ?? 1),
+      limit: String(query.limit ?? 10),
+    });
+    if (query.q?.trim()) params.set('q', query.q.trim());
+    for (const key of [
+      'primaryMuscle',
+      'equipment',
+      'movementPattern',
+    ] as const)
+      if (query[key] !== undefined) params.set(key, query[key]);
+    return this.request('/exercises?' + params, isCatalogPage, { signal });
+  }
+  private templatePath(id: string): string {
+    return '/workout-templates/' + this.pathSegment(id);
+  }
+  private planningBody(input: Partial<PlanningInput>) {
+    return {
+      targetSets: input.targetSets,
+      targetRepsMin: input.targetRepsMin,
+      targetRepsMax: input.targetRepsMax,
+      restSeconds: input.restSeconds,
+      notes: input.notes,
+    };
+  }
+  private async noContent(path: string): Promise<void> {
+    const response = await this.authenticated(path, { method: 'DELETE' });
+    if (response.status !== 204) {
+      await this.json(response);
+      throw new ApiError('response');
+    }
+  }
   startWorkout(workoutTemplateId: string): Promise<WorkoutSession> {
     return this.request(
       '/workout-sessions',
@@ -267,14 +394,9 @@ export class ApiClient {
     exerciseId: string,
     setId: string,
   ): Promise<void> {
-    const response = await this.authenticated(
+    await this.noContent(
       this.setPath(sessionId, exerciseId) + '/' + this.pathSegment(setId),
-      { method: 'DELETE' },
     );
-    if (response.status !== 204) {
-      await this.json(response);
-      throw new ApiError('response');
-    }
   }
   completeWorkout(sessionId: string): Promise<WorkoutSession> {
     return this.request(
@@ -307,7 +429,7 @@ export class ApiClient {
       '/sets'
     );
   }
-  private body(method: 'POST' | 'PATCH', value: object): RequestInit {
+  private body(method: 'POST' | 'PATCH' | 'PUT', value: object): RequestInit {
     return {
       method,
       headers: { 'content-type': 'application/json' },

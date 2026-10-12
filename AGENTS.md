@@ -113,6 +113,10 @@ generados.
   ejercicios desde el catálogo mutable. Las sesiones terminales son read-only;
   las posiciones de SetEntry provienen del backend, también después de borrar.
   El logging recoge valores canónicos sin calcular analytics ni detectar PRs.
+- La gestión frontend de templates distingue WorkoutTemplateExercise.id de
+  Exercise.id: update/remove/reorder usan la identidad de la entrada planificada.
+  Las escrituras ambiguas no se repiten automáticamente; se relee el backend
+  antes de permitir nuevos cambios.
 
 ## Seguridad
 
