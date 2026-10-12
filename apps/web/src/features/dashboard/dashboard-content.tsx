@@ -1,3 +1,4 @@
+import Link from 'next/link';
 import type {
   DashboardSummary,
   ExercisePerformance,
@@ -303,7 +304,13 @@ export function DashboardContent({
                 className="min-w-0 rounded-lg border border-slate-200 p-4"
               >
                 <h3 className="font-semibold text-slate-800 [overflow-wrap:anywhere]">
-                  {workout.name}
+                  <Link
+                    href={'/history/' + encodeURIComponent(workout.id)}
+                    className="rounded focus-visible:outline-2 focus-visible:outline-teal-700 hover:underline"
+                    aria-label={'View history of ' + workout.name}
+                  >
+                    {workout.name}
+                  </Link>
                 </h3>
                 <time
                   dateTime={workout.startedAt}

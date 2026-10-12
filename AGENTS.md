@@ -117,6 +117,9 @@ generados.
   Exercise.id: update/remove/reorder usan la identidad de la entrada planificada.
   Las escrituras ambiguas no se repiten automáticamente; se relee el backend
   antes de permitir nuevos cambios.
+- El frontend History conserva filtros, paginación y orden del backend; su detalle
+  es siempre read-only y usa snapshots históricos sin consultas al catálogo o
+  template actuales. Los campos opcionales null siguen siendo ausencia, no cero.
 
 ## Seguridad
 

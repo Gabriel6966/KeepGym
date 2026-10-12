@@ -9,7 +9,7 @@ import { buttonClass } from '../dashboard/dashboard.ui';
 export function AppHeader({
   active,
 }: {
-  active: 'dashboard' | 'workout' | 'templates';
+  active: 'dashboard' | 'workout' | 'templates' | 'history';
 }) {
   const router = useRouter();
   const [pending, setPending] = useState(false),
@@ -48,20 +48,24 @@ export function AppHeader({
           aria-label="Main navigation"
           className="flex flex-wrap items-center justify-end gap-1 sm:gap-3"
         >
-          {(['dashboard', 'workout', 'templates'] as const).map((item) => (
-            <Link
-              key={item}
-              href={'/' + item}
-              aria-current={active === item ? 'page' : undefined}
-              className="rounded-md px-2 py-3 text-sm font-medium text-slate-800 focus-visible:outline-2 focus-visible:outline-teal-700"
-            >
-              {item === 'dashboard'
-                ? 'Dashboard'
-                : item === 'workout'
-                  ? 'Workout'
-                  : 'Templates'}
-            </Link>
-          ))}
+          {(['dashboard', 'workout', 'templates', 'history'] as const).map(
+            (item) => (
+              <Link
+                key={item}
+                href={'/' + item}
+                aria-current={active === item ? 'page' : undefined}
+                className="rounded-md px-2 py-3 text-sm font-medium text-slate-800 focus-visible:outline-2 focus-visible:outline-teal-700"
+              >
+                {item === 'dashboard'
+                  ? 'Dashboard'
+                  : item === 'workout'
+                    ? 'Workout'
+                    : item === 'templates'
+                      ? 'Templates'
+                      : 'History'}
+              </Link>
+            ),
+          )}
           <button
             type="button"
             onClick={logout}

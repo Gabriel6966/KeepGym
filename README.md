@@ -1058,6 +1058,34 @@ Flujo completo: Login → Templates → Create → Add exercises → Planning �
 migraciones o dependencias. Tests Node/React cubren contratos, formas, identidad,
 ordering, bloqueo y estados; las interacciones se verifican con API/Web reales.
 
+## Workout History frontend (GYM-032)
+
+`/history` lista sesiones terminales (`COMPLETED` y `CANCELLED`), nunca
+`IN_PROGRESS`, mediante `GET /history/workouts`. Búsqueda `q`, status y rangos
+from/to se aplican en backend; la UI pagina de 20 en 20 y conserva el orden
+`startedAt DESC, id DESC`. Filtros y página viven en la URL para refresh, deep
+links y back/forward. Apply/Clear reinicia la primera página. Params inválidos,
+duplicados o desconocidos se normalizan antes de consultar, sin enviar userId.
+
+Los filtros de fecha son timestamps RFC3339 explícitos (Z u offset, hasta tres
+decimales), no DATE-only ni horas locales sin zona. Ambos extremos son inclusivos
+y filtran startedAt. La presentación de fechas usa la timezone del navegador;
+no se transforma silenciosamente un día del calendario en una frontera UTC.
+
+`/history/[workoutId]` recupera su propio detalle con
+`GET /history/workouts/:id`: nombre, status, notas, timestamps, snapshots de
+ejercicios, planning y SetEntry ordenados. CANCELLED conserva sus series
+registradas, carga 0 se muestra como 0 kg y RPE/RIR null como —. No hay mutaciones,
+analytics locales, cálculo de duración, consultas a templates/catalog actuales
+ni calls de detalle por card. El endpoint de History por Exercise no se utiliza.
+
+Dashboard recentWorkouts y las pantallas Workout terminales enlazan al detalle;
+Back to History siempre está disponible. Auth reutiliza el cliente/token en
+memoria y refresh HttpOnly existente. Loading/Retry, vacío filtrado/no filtrado
+y errores ownership-safe no fabrican datos. No se cambian backend, schema,
+migraciones ni dependencias. Tests Node/React y smoke con API/Web reales cubren
+contratos, URL, snapshots, nulabilidad y read-only sin nuevo framework de testing.
+
 ## Calidad y build
 
 Ejecuta desde la raíz antes de cerrar cualquier ticket:
