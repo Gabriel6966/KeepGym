@@ -6,7 +6,8 @@ inicial y un endpoint de salud, sin funcionalidades de gimnasio. GYM-002 añade
 PostgreSQL local y Prisma ORM 7 al backend. GYM-003 incorpora el primer modelo,
 User. GYM-004 añade autenticación mediante Argon2id y JWT de acceso; GYM-005
 incorpora sesiones persistentes y refresh tokens rotatorios en cookies HttpOnly.
-No hay interfaz de autenticación en el frontend.
+GYM-029 añade el Dashboard frontend y una interfaz mínima de login que reutiliza
+este contrato de autenticación, sin almacenar tokens en localStorage.
 GYM-006 añade el perfil privado del usuario autenticado, sin medidas corporales.
 GYM-007 incorpora un catálogo global de ejercicios de solo lectura.
 GYM-008 añade plantillas privadas de entrenamiento planificado.
@@ -87,8 +88,8 @@ Para personalizarlas, copia manualmente cada `.env.example` a `.env` en su
 misma carpeta. La API carga su `.env` mediante Nest Config y valida el puerto
 y la configuración JWT al arrancar; Next.js
 carga sus variables de entorno de forma nativa. Las variables ya presentes
-en el proceso tienen prioridad. La página inicial todavía no consume la API;
-`NEXT_PUBLIC_API_URL` queda documentada para los próximos tickets. Las variables
+en el proceso tienen prioridad. Dashboard utiliza `NEXT_PUBLIC_API_URL` como base
+del cliente fetch; debe estar configurada al iniciar dev o realizar el build. Las variables
 con prefijo `NEXT_PUBLIC_` son públicas y nunca deben contener secretos.
 
 ## Base de datos local (GYM-002)
@@ -923,6 +924,48 @@ instantes ligeramente distintos; un fallo no se sustituye por ceros ni resultado
 parciales, tampoco ante un fallo del snapshot muscular. El resumen es factual/read-only,
 sin eventos de PR, recomendaciones ni interpretación de calidad. No modifica schema,
 índices ni las ocho migraciones.
+
+## Dashboard frontend (GYM-029)
+
+`/dashboard` usa Next.js App Router, React y Tailwind existentes. Requiere una
+cuenta del backend: `/login` envía credenciales a `/auth/login`, conserva el access
+token solo en memoria y utiliza la refresh cookie HttpOnly del backend mediante
+`credentials: include`. Un reload recupera acceso con `/auth/refresh`; un 401
+intenta refresh/retry una vez y, si la sesión no es válida, vuelve a login con
+un return path restringido al Dashboard. No hay cookies nuevas ni userId manual.
+La home conserva su contenido y añade enlaces a Dashboard y login.
+
+Cada carga/refetch realiza una sola consulta de datos a
+`GET /dashboard/summary?weekStart=...&timezone=...` (salvo retry de autenticación),
+sin fan-out a calendar, records, body analytics o history. El backend sigue siendo
+la fuente de analytics y reglas de negocio; frontend únicamente presenta valores,
+nulls y timestamps. Consistency muestra solo los campos de su contrato real:
+semanas activas, racha máxima, racha final y ventana de 12 semanas.
+
+La semana inicial es el lunes del calendario local del navegador; la timezone
+proviene de Intl/IANA, con UTC como fallback técnico. Previous/Next/Current week
+operan sobre DATE-only, no 168 horas. `weekStart` vive en la URL, por ejemplo
+`/dashboard?weekStart=2026-10-12`, para deep-links, refresh y back/forward. Valores
+inválidos usan el lunes actual; semanas futuras son válidas.
+
+La UI responsive presenta resumen semanal, comparación, consistencia, músculos,
+workouts recientes, performances latest/previous, holders actuales y progreso
+corporal independiente por métrica. Usa kg/cm/% canónicos, sin conversión imperial,
+sin recalcular deltas/porcentajes/Epley ni interpretar calidad. Una media o métrica
+ausente se muestra como `—`, no cero. Hay skeletons, error global sanitizado con
+Retry y estados vacíos por sección. Las tablas tienen scroll interno en móvil.
+
+Configura `apps/web/.env` a partir de su plantilla solo si aún no existe, o usa
+variables temporales de proceso. `FRONTEND_ORIGIN` debe coincidir exactamente con
+el origen web y API/web deben desplegarse en un contexto compatible con la cookie
+SameSite del backend (en local: ambos bajo localhost). No cambies `.env` existentes.
+
+`pnpm --filter @gym/web test` usa el runner nativo de Node, TypeScript y
+react-dom/server ya instalados: calendario/DST, formato, contrato HTTP, fetch/auth,
+markup populated/empty/null, loading y error. No se añade RTL, jsdom ni otro
+framework. Los tests de markup no sustituyen interacciones de navegador: verificar
+login, navegación/back/forward, reload, Retry, cuentas vacías/con datos y anchos
+375/768/1440 px contra API/Web reales. No hay cambios de semántica backend.
 
 ## Calidad y build
 

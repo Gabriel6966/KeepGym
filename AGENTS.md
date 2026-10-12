@@ -104,6 +104,11 @@ generados.
   El progreso corporal se compone desde el overview all-time de BodyAnalyticsService,
   sin reconstruir cambios ni acceder a BodyMeasurement desde Dashboard; conserva
   el contrato por métrica y las unidades canónicas, independiente de la semana.
+- El Dashboard frontend consume el endpoint compuesto, no hace fan-out a las
+  APIs de dominio ni recalcula analytics. Navega semanas DATE-only por calendario,
+  no por 168 horas; presenta unidades canónicas sin conversión implícita.
+  El access token frontend permanece en memoria y la refresh cookie sigue siendo
+  exclusivamente responsabilidad del backend; no persistir tokens en localStorage.
 
 ## Seguridad
 
