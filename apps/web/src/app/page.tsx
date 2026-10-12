@@ -10,7 +10,16 @@ export default function Home() {
       <p className="text-lg text-slate-600">
         Track your workouts. Measure your progress.
       </p>
-      <nav aria-label="Main navigation" className="mt-4 flex gap-3">
+      <nav
+        aria-label="Main navigation"
+        className="mt-4 flex flex-wrap justify-center gap-3"
+      >
+        <Link
+          href="/workout"
+          className="rounded-lg border border-slate-300 px-5 py-3 text-sm font-medium focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-700"
+        >
+          Workout
+        </Link>
         <Link
           href="/dashboard"
           className="rounded-lg bg-slate-900 px-5 py-3 text-sm font-medium text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-700"

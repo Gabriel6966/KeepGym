@@ -1,6 +1,5 @@
 'use client';
 
-import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useEffect, useState, useSyncExternalStore } from 'react';
 import { apiClient, ApiError } from '../../lib/api-client';
@@ -16,6 +15,7 @@ import { formatWeekRange } from './format';
 import type { DashboardSummary } from './dashboard.types';
 import { DashboardContent } from './dashboard-content';
 import { buttonClass, DashboardError, DashboardSkeleton } from './dashboard.ui';
+import { AppHeader } from '../navigation/app-header';
 
 function subscribeCalendar(callback: () => void) {
   window.addEventListener('focus', callback);
@@ -51,8 +51,6 @@ export function DashboardClient() {
   const locale = calendar ? navigator.language : undefined;
   const [result, setResult] = useState<LoadState>(null),
     [retry, setRetry] = useState(0);
-  const [signingOut, setSigningOut] = useState(false),
-    [logoutError, setLogoutError] = useState(false);
   const key = `${weekStart}|${timezone}|${retry}`;
   useEffect(() => {
     if (!weekStart || !timezone) return;
@@ -77,54 +75,11 @@ export function DashboardClient() {
       scroll: false,
     });
   }
-  async function logout() {
-    setSigningOut(true);
-    setLogoutError(false);
-    try {
-      await apiClient.logout();
-      router.replace('/login');
-    } catch {
-      setLogoutError(true);
-      setSigningOut(false);
-    }
-  }
   const previous = weekStart ? addCalendarDaysToDateOnly(weekStart, -7) : null;
   const next = weekStart ? addCalendarDaysToDateOnly(weekStart, 7) : null;
   return (
     <div className="min-h-screen bg-slate-50">
-      <header className="border-b border-slate-200 bg-white">
-        <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-4 py-4 sm:px-6 lg:px-8">
-          <Link
-            href="/"
-            className="flex items-center gap-3 rounded-lg focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-teal-700"
-          >
-            <span
-              aria-hidden="true"
-              className="flex size-9 items-center justify-center rounded-lg bg-slate-900 text-sm font-bold text-white"
-            >
-              G
-            </span>
-            <span className="font-semibold tracking-tight">Gym App</span>
-          </Link>
-          <nav aria-label="Main navigation" className="flex items-center gap-3">
-            <Link
-              href="/dashboard"
-              aria-current="page"
-              className="rounded-md px-2 py-2 text-sm font-medium text-slate-800 focus-visible:outline-2 focus-visible:outline-teal-700"
-            >
-              Dashboard
-            </Link>
-            <button
-              type="button"
-              onClick={logout}
-              disabled={signingOut}
-              className={buttonClass}
-            >
-              {signingOut ? 'Signing out...' : 'Sign out'}
-            </button>
-          </nav>
-        </div>
-      </header>
+      <AppHeader active="dashboard" />
       <main
         id="main-content"
         className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8 lg:py-10"
@@ -181,11 +136,6 @@ export function DashboardClient() {
             </div>
           </div>
         </div>
-        {logoutError && (
-          <p role="alert" className="mb-5 text-sm text-slate-700">
-            We couldn&apos;t sign you out. Please try again.
-          </p>
-        )}
         {result?.key === key ? (
           result.kind === 'success' ? (
             <DashboardContent summary={result.data} locale={locale} />

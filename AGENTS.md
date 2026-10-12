@@ -109,6 +109,10 @@ generados.
   no por 168 horas; presenta unidades canónicas sin conversión implícita.
   El access token frontend permanece en memoria y la refresh cookie sigue siendo
   exclusivamente responsabilidad del backend; no persistir tokens en localStorage.
+- El logging frontend renderiza los snapshots de WorkoutSession, nunca reconstruye
+  ejercicios desde el catálogo mutable. Las sesiones terminales son read-only;
+  las posiciones de SetEntry provienen del backend, también después de borrar.
+  El logging recoge valores canónicos sin calcular analytics ni detectar PRs.
 
 ## Seguridad
 

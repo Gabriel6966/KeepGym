@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useState, type FormEvent } from 'react';
 import { apiClient, ApiError } from '../../lib/api-client';
-import { dashboardReturnPath } from '../dashboard/calendar';
+import { authReturnPath } from './return-path';
 import { buttonClass } from '../dashboard/dashboard.ui';
 
 export function LoginForm() {
@@ -21,7 +21,7 @@ export function LoginForm() {
     try {
       await apiClient.login(email, password);
       setPassword('');
-      router.replace(dashboardReturnPath(params.get('returnTo')));
+      router.replace(authReturnPath(params.get('returnTo')));
     } catch (error: unknown) {
       setError(
         error instanceof ApiError && error.kind === 'unauthorized'
@@ -47,7 +47,7 @@ export function LoginForm() {
         </Link>
         <h1 className="mt-6 text-2xl font-semibold tracking-tight">Sign in</h1>
         <p className="mt-2 text-sm leading-6 text-slate-500">
-          Access your training dashboard with your existing account.
+          Access your workouts and dashboard with your existing account.
         </p>
         <form
           className="mt-7 space-y-5"
