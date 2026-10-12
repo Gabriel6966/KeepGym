@@ -8,6 +8,7 @@ import {
   type WorkoutSession,
   type WorkoutSessionSummary,
   type WorkoutTemplate,
+  type TemplateExercise,
 } from './workout.types';
 
 const object = (v: unknown): v is Record<string, unknown> =>
@@ -85,7 +86,23 @@ export function isWorkoutSession(v: unknown): v is WorkoutSession {
     )
   );
 }
-function template(v: unknown): v is WorkoutTemplate {
+export function isTemplateExercise(v: unknown): v is TemplateExercise {
+  return (
+    object(v) &&
+    text(v.id) &&
+    positive(v.position) &&
+    positive(v.targetSets) &&
+    positive(v.targetRepsMin) &&
+    positive(v.targetRepsMax) &&
+    count(v.restSeconds) &&
+    nullableText(v.notes) &&
+    exercise(v.exercise) &&
+    object(v.exercise) &&
+    text(v.exercise.id) &&
+    typeof v.exercise.isAvailable === 'boolean'
+  );
+}
+export function isWorkoutTemplate(v: unknown): v is WorkoutTemplate {
   return (
     object(v) &&
     text(v.id) &&
@@ -93,22 +110,7 @@ function template(v: unknown): v is WorkoutTemplate {
     nullableText(v.description) &&
     date(v.createdAt) &&
     date(v.updatedAt) &&
-    array(
-      v.exercises,
-      (item) =>
-        object(item) &&
-        text(item.id) &&
-        positive(item.position) &&
-        positive(item.targetSets) &&
-        positive(item.targetRepsMin) &&
-        positive(item.targetRepsMax) &&
-        count(item.restSeconds) &&
-        nullableText(item.notes) &&
-        exercise(item.exercise) &&
-        object(item.exercise) &&
-        text(item.exercise.id) &&
-        typeof item.exercise.isAvailable === 'boolean',
-    )
+    array(v.exercises, isTemplateExercise)
   );
 }
 function page<T>(
@@ -126,7 +128,7 @@ function page<T>(
 }
 export const isTemplatePage = (
   v: unknown,
-): v is ResourcePage<WorkoutTemplate> => page(v, template);
+): v is ResourcePage<WorkoutTemplate> => page(v, isWorkoutTemplate);
 export const isSessionPage = (
   v: unknown,
 ): v is ResourcePage<WorkoutSessionSummary> => page(v, sessionSummary);

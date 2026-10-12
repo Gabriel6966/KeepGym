@@ -6,7 +6,11 @@ import { useState } from 'react';
 import { apiClient } from '../../lib/api-client';
 import { buttonClass } from '../dashboard/dashboard.ui';
 
-export function AppHeader({ active }: { active: 'dashboard' | 'workout' }) {
+export function AppHeader({
+  active,
+}: {
+  active: 'dashboard' | 'workout' | 'templates';
+}) {
   const router = useRouter();
   const [pending, setPending] = useState(false),
     [error, setError] = useState(false);
@@ -44,14 +48,18 @@ export function AppHeader({ active }: { active: 'dashboard' | 'workout' }) {
           aria-label="Main navigation"
           className="flex flex-wrap items-center justify-end gap-1 sm:gap-3"
         >
-          {(['dashboard', 'workout'] as const).map((item) => (
+          {(['dashboard', 'workout', 'templates'] as const).map((item) => (
             <Link
               key={item}
               href={'/' + item}
               aria-current={active === item ? 'page' : undefined}
               className="rounded-md px-2 py-3 text-sm font-medium text-slate-800 focus-visible:outline-2 focus-visible:outline-teal-700"
             >
-              {item === 'dashboard' ? 'Dashboard' : 'Workout'}
+              {item === 'dashboard'
+                ? 'Dashboard'
+                : item === 'workout'
+                  ? 'Workout'
+                  : 'Templates'}
             </Link>
           ))}
           <button

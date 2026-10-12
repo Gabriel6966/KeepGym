@@ -62,6 +62,7 @@ export interface ResourcePage<T> {
   total: number;
   totalPages: number;
 }
+export type TemplateExercise = WorkoutTemplate['exercises'][number];
 export interface SetEntry {
   id: string;
   position: number;

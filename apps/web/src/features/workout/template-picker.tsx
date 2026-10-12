@@ -41,7 +41,9 @@ export function TemplateChoices({
           {items.length > 0
             ? 'No usable templates on this page. Empty templates cannot be started.'
             : 'No workout templates yet.'}{' '}
-          Template management will be available in its own section.
+          <Link href="/templates" className={buttonClass + ' mt-4'}>
+            Manage templates
+          </Link>
         </EmptyState>
       ) : (
         <ul className="grid gap-4 md:grid-cols-2">

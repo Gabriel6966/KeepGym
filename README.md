@@ -972,7 +972,7 @@ login, navegación/back/forward, reload, Retry, cuentas vacías/con datos y anch
 `/workout` requiere la autenticación existente y lista templates no archivadas
 mediante `GET /workout-templates?page=...&limit=20`. Solo permite iniciar templates
 con ejercicios; no impone una restricción nueva sobre ejercicios vinculados
-inactivos. No crea ni modifica templates: su gestión frontend queda para GYM-031.
+inactivos. No crea ni modifica templates: su gestión frontend reside en Templates (GYM-031).
 El listado paginado permite navegar
 todas las templates. Sin templates utilizables muestra un estado vacío.
 
@@ -1014,6 +1014,49 @@ después de login. La navegación común mantiene Dashboard y añade Workout.
 Los tests usan la infraestructura Node/React existente; las interacciones se
 verifican contra API/Web reales, sin incorporar otro framework. No se modifica
 backend, Prisma, migraciones, dependencias ni `.env`.
+
+## Workout Templates frontend (GYM-031)
+
+`/templates` lista planes activos del usuario con paginación real;
+`/templates/new` crea metadata y navega al detalle `/templates/[templateId]`.
+La navegación compartida incluye Templates y el estado vacío de Workout enlaza
+su gestión. Se reutilizan cliente fetch, token en memoria, refresh HttpOnly,
+401/retry único y return paths seguros. Nunca se envía userId.
+
+La metadata admite name (1–120 caracteres) y description opcional/null (hasta
+1000). El picker inline consulta `GET /exercises` con búsqueda, filtro de músculo
+primario y paginación; el backend aplica active-only. No es una página de catálogo
+ni hace queries de detalle por resultado. Ejercicios ya presentes se deshabilitan
+como ayuda visual, sin sustituir la protección de duplicates del backend.
+
+Planning usa exclusivamente targetSets (1–20), targetRepsMin/Max (1–100 y min <=
+max), restSeconds (0–1800, default backend 90 al añadir) y notes opcional/null
+(hasta 500). Campos enteros no se truncan/coercionan desde formatos ambiguos.
+Planning es guía, no validación de performance. Las entradas mantienen el orden
+recibido: Move up/down envía `templateExerciseIds` mediante PUT
+`/workout-templates/:id/exercises/order` y aplica la respuesta, sin escribir
+posiciones cliente-side. Update/remove/reorder usan WorkoutTemplateExercise.id;
+solo add usa Exercise.id. Remove pide confirmación y relee la compactación backend.
+
+Metadata, add y planning aceptan sus responses; reorder devuelve el detalle
+completo. No hay actualizaciones optimistas ni analytics de cliente. Los locks
+síncronos evitan doble submit y reorder cruzado. Errores locales conservan drafts;
+resultados de red ambiguos (incluida respuesta ilegible) bloquean escrituras hasta
+Reload. Create no se repite: ofrece la lista refrescada para comprobar si fue
+aplicado. No se deduce identidad mediante el nombre, que no es único.
+
+Archive usa DELETE `/workout-templates/:id`, pide confirmación y recibe 204. Se
+muestra el recibo de éxito read-only; no se añade un archivedAt/isArchived al
+contrato HTTP. La API existente no lista ni recupera archivadas, ni ofrece restore:
+un reload de ese detalle devuelve el estado seguro unavailable. No se inventa
+filtro/includeArchived. La plantilla se conserva en DB y desaparece de Workout;
+sesiones anteriores mantienen sus snapshots aunque cambien nombre/planning/orden
+o se archive la fuente. Una template vacía puede editarse pero no iniciarse.
+
+Flujo completo: Login → Templates → Create → Add exercises → Planning → Reorder
+→ Workout → Start → Sets → Complete → Dashboard. No cambia backend, schema,
+migraciones o dependencias. Tests Node/React cubren contratos, formas, identidad,
+ordering, bloqueo y estados; las interacciones se verifican con API/Web reales.
 
 ## Calidad y build
 
