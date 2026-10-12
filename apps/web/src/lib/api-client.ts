@@ -29,6 +29,20 @@ import type {
   PlanningInput,
   TemplateMetadataInput,
 } from '../features/templates/templates.types';
+import {
+  isHistoryPage,
+  isHistoryDetail,
+} from '../features/history/history.contract';
+import {
+  historyTimestamp,
+  validHistoryPagination,
+} from '../features/history/history-query';
+import {
+  historyStatuses,
+  type WorkoutHistoryQuery,
+  type WorkoutHistoryPage,
+  type WorkoutHistoryDetail,
+} from '../features/history/history.types';
 
 export class ApiError extends Error {
   constructor(
@@ -220,6 +234,45 @@ export class ApiClient {
       isSessionPage,
       { signal },
     );
+  }
+  listWorkoutHistory(
+    query: WorkoutHistoryQuery = {},
+    signal?: AbortSignal,
+  ): Promise<WorkoutHistoryPage> {
+    const page = query.page ?? 1,
+      limit = query.limit ?? 20;
+    if (
+      !validHistoryPagination(page, limit) ||
+      (query.status !== undefined && !historyStatuses.includes(query.status)) ||
+      (query.q !== undefined &&
+        (!query.q.trim() || [...query.q.trim()].length > 100)) ||
+      (query.from !== undefined && !historyTimestamp(query.from)) ||
+      (query.to !== undefined && !historyTimestamp(query.to)) ||
+      (query.from && query.to && Date.parse(query.from) > Date.parse(query.to))
+    )
+      throw new ApiError('configuration');
+    const params = new URLSearchParams({
+      page: String(page),
+      limit: String(limit),
+    });
+    for (const key of ['status', 'q', 'from', 'to'] as const)
+      if (query[key] !== undefined)
+        params.set(key, key === 'q' ? query[key].trim() : query[key]);
+    return this.request('/history/workouts?' + params, isHistoryPage, {
+      signal,
+    });
+  }
+  async getWorkoutHistory(
+    workoutId: string,
+    signal?: AbortSignal,
+  ): Promise<WorkoutHistoryDetail> {
+    const result = await this.request(
+      '/history/workouts/' + this.pathSegment(workoutId),
+      isHistoryDetail,
+      { signal },
+    );
+    if (result.id !== workoutId) throw new ApiError('response');
+    return result;
   }
   createWorkoutTemplate(
     input: TemplateMetadataInput,

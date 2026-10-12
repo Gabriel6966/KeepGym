@@ -82,6 +82,12 @@ export function WorkoutSessionContent({
           <Link href="/dashboard" className={buttonClass + ' mt-4'}>
             Open Dashboard
           </Link>
+          <Link
+            href={'/history/' + encodeURIComponent(session.id)}
+            className={buttonClass + ' ml-2 mt-4'}
+          >
+            View in History
+          </Link>
         </div>
       )}
       {blocked && (

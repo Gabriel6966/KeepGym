@@ -1,17 +1,25 @@
 import { dashboardReturnPath } from '../dashboard/calendar';
+import { historyUrl, normalizeHistoryUrl } from '../history/history-query';
 
 export function authReturnPath(value: string | null): string {
   if (
-    (value?.startsWith('/workout') || value?.startsWith('/templates')) &&
+    (value?.startsWith('/workout') ||
+      value?.startsWith('/templates') ||
+      value?.startsWith('/history')) &&
     !value.startsWith('//')
   ) {
     try {
       const url = new URL(value, 'https://return.invalid');
       if (
         url.origin === 'https://return.invalid' &&
+        url.pathname === '/history'
+      )
+        return historyUrl(normalizeHistoryUrl(url.searchParams));
+      if (
+        url.origin === 'https://return.invalid' &&
         (url.pathname === '/workout' ||
           url.pathname === '/templates' ||
-          /^\/(?:workout|templates)\/[^/]+$/.test(url.pathname))
+          /^\/(?:workout|templates|history)\/[^/]+$/.test(url.pathname))
       )
         return url.pathname;
     } catch {
