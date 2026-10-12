@@ -120,6 +120,10 @@ generados.
 - El frontend History conserva filtros, paginación y orden del backend; su detalle
   es siempre read-only y usa snapshots históricos sin consultas al catálogo o
   template actuales. Los campos opcionales null siguen siendo ausencia, no cero.
+- La UI Body mantiene observaciones parciales, no un snapshot corporal completo.
+  PATCH distingue campos omitidos de null explícito y conserva measuredAt si no
+  cambia. Los horarios locales se serializan con timezone explícita; los huecos
+  DST no se desplazan silenciosamente. Los cambios corporales siguen en backend.
 
 ## Seguridad
 

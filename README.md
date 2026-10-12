@@ -1086,6 +1086,41 @@ y errores ownership-safe no fabrican datos. No se cambian backend, schema,
 migraciones ni dependencias. Tests Node/React y smoke con API/Web reales cubren
 contratos, URL, snapshots, nulabilidad y read-only sin nuevo framework de testing.
 
+## Body Measurements frontend (GYM-033)
+
+`/body` consulta observaciones históricas paginadas mediante
+`GET /body-measurements`, sin ordenarlas cliente-side: measuredAt DESC, id DESC.
+`/body/new` crea y `/body/[measurementId]/edit` carga el detalle propio para editar,
+también tras refresh/deep link. El header compartido y Manage measurements del
+Dashboard enlazan Body. Auth/token en memoria/refresh HttpOnly y cliente fetch
+son los existentes; nunca se envía userId ni se consulta Profile para peso.
+
+Las cinco métricas son opcionales, pero queda al menos una no-null: weightKg
+(>0–1000 kg), bodyFatPercent (>0–100 %), waistCm/chestCm/hipsCm (>0–500 cm).
+La entrada acepta punto o coma con hasta dos decimales sin truncar ni redondear.
+Vacío es ausencia, nunca cero; notes opcionales (hasta 1000 caracteres) no cuentan
+como métrica. PATCH envía solo campos cambiados y null explícito para limpiar.
+La validación del último valor bajo concurrencia sigue perteneciendo al backend.
+
+Now omite measuredAt para usar el reloj servidor. Local date and time se interpreta
+en la timezone IANA del navegador y se envía como RFC3339 con offset; no como UTC
+implícito. Los huecos DST se rechazan; horas repetidas usan el offset anterior y
+pueden especificarse inequívocamente con Exact timestamp (Z u offset, hasta
+milisegundos). Al editar se conserva el instante histórico original por defecto,
+incluidas horas repetidas y fracciones. El servidor valida fechas futuras con su
+tolerancia existente; no se introduce otra política de reloj en frontend.
+
+Delete elimina físicamente con confirmación y 204; no archiva. Se relee el listado
+y se ajusta la página si queda vacía tras borrar. POST/PATCH/DELETE no se repiten
+ante fallo de red ambiguo: conservan drafts/datos y exigen Reload para reconciliar.
+Body muestra histórico parcial, no latest/previous/change. Al volver al Dashboard
+se consulta su endpoint compuesto y BodyAnalytics resuelve las secuencias por
+métrica; no hay cálculos locales, BMI, objetivos, conversiones ni charts.
+
+Tests Node/React cubren contratos, Decimal, nulabilidad, PATCH, reloj local/DST en
+procesos TZ aislados, loading/error y estados. El ciclo de mediciones parciales,
+edición y eliminación se verifica con API/Web reales sin nuevas dependencias.
+
 ## Calidad y build
 
 Ejecuta desde la raíz antes de cerrar cualquier ticket:
