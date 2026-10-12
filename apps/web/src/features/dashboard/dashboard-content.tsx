@@ -418,6 +418,12 @@ export function DashboardContent({
         title="Body progress"
         description="Latest known observations · each metric has its own timeline. Canonical kg, cm and %."
       >
+        <Link
+          href="/body"
+          className="mb-5 inline-flex min-h-11 items-center rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium focus-visible:outline-2 focus-visible:outline-teal-700"
+        >
+          Manage measurements
+        </Link>
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
           {bodyMetricKeys.map((key) => {
             const metric = summary.bodyProgress[key],

@@ -43,6 +43,16 @@ import {
   type WorkoutHistoryPage,
   type WorkoutHistoryDetail,
 } from '../features/history/history.types';
+import {
+  isBodyMeasurement,
+  isBodyMeasurementPage,
+} from '../features/body/body.contract';
+import type {
+  BodyMeasurement,
+  BodyMeasurementInput,
+  BodyMeasurementPage,
+  BodyMeasurementQuery,
+} from '../features/body/body.types';
 
 export class ApiError extends Error {
   constructor(
@@ -234,6 +244,74 @@ export class ApiClient {
       isSessionPage,
       { signal },
     );
+  }
+  listBodyMeasurements(
+    query: BodyMeasurementQuery = {},
+    signal?: AbortSignal,
+  ): Promise<BodyMeasurementPage> {
+    const page = query.page ?? 1,
+      limit = query.limit ?? 20;
+    if (
+      !validHistoryPagination(page, limit) ||
+      (query.from !== undefined && !historyTimestamp(query.from)) ||
+      (query.to !== undefined && !historyTimestamp(query.to)) ||
+      (query.from && query.to && Date.parse(query.from) > Date.parse(query.to))
+    )
+      throw new ApiError('configuration');
+    const params = new URLSearchParams({
+      page: String(page),
+      limit: String(limit),
+    });
+    for (const key of ['from', 'to'] as const)
+      if (query[key] !== undefined) params.set(key, query[key]);
+    return this.request('/body-measurements?' + params, isBodyMeasurementPage, {
+      signal,
+    });
+  }
+  async getBodyMeasurement(
+    id: string,
+    signal?: AbortSignal,
+  ): Promise<BodyMeasurement> {
+    const measurement = await this.request(
+      '/body-measurements/' + this.pathSegment(id),
+      isBodyMeasurement,
+      { signal },
+    );
+    if (measurement.id !== id) throw new ApiError('response');
+    return measurement;
+  }
+  createBodyMeasurement(input: BodyMeasurementInput): Promise<BodyMeasurement> {
+    return this.request(
+      '/body-measurements',
+      isBodyMeasurement,
+      this.body('POST', this.measurementBody(input)),
+    );
+  }
+  async updateBodyMeasurement(
+    id: string,
+    input: BodyMeasurementInput,
+  ): Promise<BodyMeasurement> {
+    const measurement = await this.request(
+      '/body-measurements/' + this.pathSegment(id),
+      isBodyMeasurement,
+      this.body('PATCH', this.measurementBody(input)),
+    );
+    if (measurement.id !== id) throw new ApiError('response');
+    return measurement;
+  }
+  deleteBodyMeasurement(id: string): Promise<void> {
+    return this.noContent('/body-measurements/' + this.pathSegment(id));
+  }
+  private measurementBody(input: BodyMeasurementInput) {
+    return {
+      measuredAt: input.measuredAt,
+      weightKg: input.weightKg,
+      bodyFatPercent: input.bodyFatPercent,
+      waistCm: input.waistCm,
+      chestCm: input.chestCm,
+      hipsCm: input.hipsCm,
+      notes: input.notes,
+    };
   }
   listWorkoutHistory(
     query: WorkoutHistoryQuery = {},

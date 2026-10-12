@@ -5,11 +5,19 @@ export function authReturnPath(value: string | null): string {
   if (
     (value?.startsWith('/workout') ||
       value?.startsWith('/templates') ||
-      value?.startsWith('/history')) &&
+      value?.startsWith('/history') ||
+      value?.startsWith('/body')) &&
     !value.startsWith('//')
   ) {
     try {
       const url = new URL(value, 'https://return.invalid');
+      if (
+        url.origin === 'https://return.invalid' &&
+        (url.pathname === '/body' ||
+          url.pathname === '/body/new' ||
+          /^\/body\/[^/]+\/edit$/.test(url.pathname))
+      )
+        return url.pathname;
       if (
         url.origin === 'https://return.invalid' &&
         url.pathname === '/history'
