@@ -967,6 +967,54 @@ framework. Los tests de markup no sustituyen interacciones de navegador: verific
 login, navegación/back/forward, reload, Retry, cuentas vacías/con datos y anchos
 375/768/1440 px contra API/Web reales. No hay cambios de semántica backend.
 
+## Workout logging frontend (GYM-030)
+
+`/workout` requiere la autenticación existente y lista templates no archivadas
+mediante `GET /workout-templates?page=...&limit=20`. Solo permite iniciar templates
+con ejercicios; no impone una restricción nueva sobre ejercicios vinculados
+inactivos. No crea ni modifica templates: su gestión frontend queda para GYM-031.
+El listado paginado permite navegar
+todas las templates. Sin templates utilizables muestra un estado vacío.
+
+También permite reanudar hasta 20 sesiones recientes desde el endpoint existente
+`GET /workout-sessions?status=IN_PROGRESS&page=1&limit=20`. Pueden coexistir varias
+sesiones activas; no se cierran automáticamente. Otras sesiones siguen accesibles
+mediante su URL. No es un browser de History.
+
+Start utiliza `POST /workout-sessions` con `{ workoutTemplateId }` y navega a
+`/workout/[sessionId]`. La pantalla recupera `GET /workout-sessions/:id` en cada
+montaje/reload y muestra exclusivamente los snapshots históricos recibidos,
+planning informativo y sets actuales. No consulta el catálogo por ejercicio.
+
+Las series usan las rutas existentes bajo
+`/workout-sessions/:id/exercises/:sessionExerciseId/sets`: POST para añadir,
+PATCH `/:setId` para editar y DELETE `/:setId` para eliminar. Carga externa en
+kg, 0–10000 y hasta dos decimales; reps enteras 1–1000; RPE opcional 1–10 en
+pasos de 0.5; RIR opcional entero 0–10. Los inputs admiten punto/coma decimal
+sin truncar ni redondear; el payload usa números JSON, nunca position/userId.
+Los campos opcionales vacíos se envían como null, incluido al editar.
+
+Add/Edit usan el set devuelto por el backend. Delete devuelve 204: se relee la
+sesión para recoger su orden compactado, sin recalcular posiciones cliente-side.
+Los submits son pesimistas y tienen locks síncronos contra doble click. Las
+acciones sobre una sesión se coordinan sin ocultar los datos mientras guardan;
+errores locales conservan el formulario. Ante un resultado de red ambiguo se
+requiere reload antes de volver a mutar. Un 409 relee el estado de la sesión para
+detectar una transición terminal realizada en otra pestaña.
+
+Complete y Cancel usan `POST /workout-sessions/:id/complete` y `/cancel`, sin
+payload y con confirmación nativa accesible. La respuesta determina COMPLETED o
+CANCELLED, oculta las mutaciones y ofrece Dashboard. Cancel no borra histórico
+ni se presenta como actividad completada. No hay timers, autofill, PR detection,
+analytics locales, edición de templates ni History frontend.
+
+El cliente fetch/auth de GYM-029 se comparte: token en memoria, refresh cookie
+HttpOnly, 401 refresh/retry una vez y retorno seguro a Workout o su deep-link
+después de login. La navegación común mantiene Dashboard y añade Workout.
+Los tests usan la infraestructura Node/React existente; las interacciones se
+verifican contra API/Web reales, sin incorporar otro framework. No se modifica
+backend, Prisma, migraciones, dependencias ni `.env`.
+
 ## Calidad y build
 
 Ejecuta desde la raíz antes de cerrar cualquier ticket:

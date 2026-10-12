@@ -4,10 +4,25 @@ import {
   isDashboardWeek,
 } from '../features/dashboard/calendar';
 import type { DashboardSummary } from '../features/dashboard/dashboard.types';
+import {
+  isSetEntry,
+  isWorkoutSession,
+  isTemplatePage,
+  isSessionPage,
+} from '../features/workout/workout.contract';
+import type {
+  ResourcePage,
+  SetEntry,
+  SetEntryInput,
+  WorkoutSession,
+  WorkoutSessionSummary,
+  WorkoutTemplate,
+} from '../features/workout/workout.types';
 
 export class ApiError extends Error {
   constructor(
     readonly kind: 'unauthorized' | 'network' | 'response' | 'configuration',
+    readonly status?: number,
   ) {
     super(
       kind === 'unauthorized'
@@ -71,8 +86,8 @@ export class ApiClient {
     }
   }
   private async json(response: Response): Promise<unknown> {
-    if (response.status === 401) throw new ApiError('unauthorized');
-    if (!response.ok) throw new ApiError('response');
+    if (response.status === 401) throw new ApiError('unauthorized', 401);
+    if (!response.ok) throw new ApiError('response', response.status);
     try {
       return await response.json();
     } catch {
@@ -131,22 +146,7 @@ export class ApiClient {
       throw new ApiError('configuration');
     const path =
       '/dashboard/summary?' + new URLSearchParams({ weekStart, timezone });
-    let token = this.token ?? (await this.refresh());
-    signal?.throwIfAborted();
-    let response = await this.send(path, {
-      headers: { authorization: 'Bearer ' + token },
-      signal,
-    });
-    if (response.status === 401) {
-      token = await this.refresh(token);
-      signal?.throwIfAborted();
-      response = await this.send(path, {
-        headers: { authorization: 'Bearer ' + token },
-        signal,
-      });
-    }
-    if (response.status === 401) this.token = null;
-    const result = await this.json(response);
+    const result = await this.json(await this.authenticated(path, { signal }));
     if (
       !isDashboardSummary(result) ||
       result.weekStart !== weekStart ||
@@ -154,6 +154,165 @@ export class ApiClient {
     )
       throw new ApiError('response');
     return result;
+  }
+  private async authenticated(
+    path: string,
+    input: RequestInit = {},
+  ): Promise<Response> {
+    const signal = input.signal;
+    signal?.throwIfAborted();
+    let token = this.token ?? (await this.refresh());
+    signal?.throwIfAborted();
+    const headers = new Headers(input.headers);
+    headers.set('authorization', 'Bearer ' + token);
+    let response = await this.send(path, {
+      ...input,
+      headers,
+    });
+    if (response.status === 401) {
+      token = await this.refresh(token);
+      signal?.throwIfAborted();
+      headers.set('authorization', 'Bearer ' + token);
+      response = await this.send(path, {
+        ...input,
+        headers,
+      });
+    }
+    if (response.status === 401) this.token = null;
+    return response;
+  }
+  private async request<T>(
+    path: string,
+    check: (v: unknown) => v is T,
+    input: RequestInit = {},
+  ): Promise<T> {
+    const result = await this.json(await this.authenticated(path, input));
+    if (!check(result)) throw new ApiError('response');
+    return result;
+  }
+  listWorkoutTemplates(
+    page = 1,
+    signal?: AbortSignal,
+  ): Promise<ResourcePage<WorkoutTemplate>> {
+    return this.request(
+      '/workout-templates?' +
+        new URLSearchParams({ page: String(page), limit: '20' }),
+      isTemplatePage,
+      { signal },
+    );
+  }
+  listInProgressWorkouts(
+    signal?: AbortSignal,
+  ): Promise<ResourcePage<WorkoutSessionSummary>> {
+    return this.request(
+      '/workout-sessions?status=IN_PROGRESS&page=1&limit=20',
+      isSessionPage,
+      { signal },
+    );
+  }
+  startWorkout(workoutTemplateId: string): Promise<WorkoutSession> {
+    return this.request(
+      '/workout-sessions',
+      isWorkoutSession,
+      this.body('POST', { workoutTemplateId }),
+    );
+  }
+  async getWorkoutSession(
+    sessionId: string,
+    signal?: AbortSignal,
+  ): Promise<WorkoutSession> {
+    const result = await this.request(
+      this.sessionPath(sessionId),
+      isWorkoutSession,
+      { signal },
+    );
+    if (result.id !== sessionId) throw new ApiError('response');
+    return result;
+  }
+  addSet(
+    sessionId: string,
+    exerciseId: string,
+    input: SetEntryInput,
+  ): Promise<SetEntry> {
+    return this.request(
+      this.setPath(sessionId, exerciseId),
+      isSetEntry,
+      this.body('POST', {
+        loadKg: input.loadKg,
+        reps: input.reps,
+        rpe: input.rpe,
+        rir: input.rir,
+      }),
+    );
+  }
+  updateSet(
+    sessionId: string,
+    exerciseId: string,
+    setId: string,
+    input: Partial<SetEntryInput>,
+  ): Promise<SetEntry> {
+    return this.request(
+      this.setPath(sessionId, exerciseId) + '/' + this.pathSegment(setId),
+      isSetEntry,
+      this.body('PATCH', {
+        loadKg: input.loadKg,
+        reps: input.reps,
+        rpe: input.rpe,
+        rir: input.rir,
+      }),
+    );
+  }
+  async deleteSet(
+    sessionId: string,
+    exerciseId: string,
+    setId: string,
+  ): Promise<void> {
+    const response = await this.authenticated(
+      this.setPath(sessionId, exerciseId) + '/' + this.pathSegment(setId),
+      { method: 'DELETE' },
+    );
+    if (response.status !== 204) {
+      await this.json(response);
+      throw new ApiError('response');
+    }
+  }
+  completeWorkout(sessionId: string): Promise<WorkoutSession> {
+    return this.request(
+      this.sessionPath(sessionId) + '/complete',
+      isWorkoutSession,
+      { method: 'POST' },
+    );
+  }
+  cancelWorkout(sessionId: string): Promise<WorkoutSession> {
+    return this.request(
+      this.sessionPath(sessionId) + '/cancel',
+      isWorkoutSession,
+      { method: 'POST' },
+    );
+  }
+  private sessionPath(id: string): string {
+    return '/workout-sessions/' + this.pathSegment(id);
+  }
+  private pathSegment(id: string): string {
+    // Prevent URL normalization from turning an opaque ID into another route.
+    // UUID/ownership validation remains exclusively the backend's responsibility.
+    if (!id || id === '.' || id === '..') throw new ApiError('configuration');
+    return encodeURIComponent(id);
+  }
+  private setPath(sessionId: string, exerciseId: string): string {
+    return (
+      this.sessionPath(sessionId) +
+      '/exercises/' +
+      this.pathSegment(exerciseId) +
+      '/sets'
+    );
+  }
+  private body(method: 'POST' | 'PATCH', value: object): RequestInit {
+    return {
+      method,
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify(value),
+    };
   }
 }
 export const apiClient = new ApiClient(process.env.NEXT_PUBLIC_API_URL);
