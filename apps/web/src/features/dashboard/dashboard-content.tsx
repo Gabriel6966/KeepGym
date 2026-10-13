@@ -2,6 +2,7 @@ import Link from 'next/link';
 import type { DashboardSummary, ExercisePerformance } from './dashboard.types';
 import { formatDate, formatDuration, formatKg, formatNumber } from './format';
 import { EmptyState, Metric, Section } from './dashboard.ui';
+import { exerciseProgressUrl } from '../progress/progress-query';
 import {
   WeeklyComparisonVisualization,
   MuscleGroupVisualization,
@@ -235,7 +236,13 @@ export function DashboardContent({
             {summary.exerciseHighlights.map((item) => (
               <li key={item.exercise.sourceExerciseId}>
                 <h3 className="mb-3 font-semibold text-slate-800 [overflow-wrap:anywhere]">
-                  {item.exercise.name}
+                  <Link
+                    href={exerciseProgressUrl(item.exercise.sourceExerciseId)}
+                    aria-label={'View progress of ' + item.exercise.name}
+                    className="rounded focus-visible:outline-2 focus-visible:outline-teal-700 hover:underline"
+                  >
+                    {item.exercise.name}
+                  </Link>
                 </h3>
                 <div className="grid gap-3 md:grid-cols-2">
                   <PerformanceDetails

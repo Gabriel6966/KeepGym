@@ -132,6 +132,11 @@ generados.
   UnitSystem es una preferencia visual y no cambia el almacenamiento canónico.
   Solo la ausencia explícita de Profile permite iniciar onboarding, no errores
   de red o servidor; las escrituras ambiguas se reconcilian antes de repetirlas.
+- Exercise Progress usa sourceExerciseId como identidad, nunca IDs de occurrences,
+  entradas de template o sets. Las tendencias por ejercicio permanecen sparse y
+  derivadas en backend; el frontend no densifica, recalcula e1RM ni elige holders.
+  Analytics summary/occurrences y Records all-time se etiquetan separadamente del
+  rango local de Weekly Trends; la metadata histórica no se reconstruye del catálogo.
 
 ## Seguridad
 

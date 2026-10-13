@@ -1179,6 +1179,42 @@ canvas, animaciones nuevas o dependencias. El loading acompaña el nuevo layout;
 Retry, fechas locales, navegación semanal, enlaces y estados vacíos siguen siendo
 los existentes. No hay fan-out a APIs de dominio ni conversiones por UnitSystem.
 
+## Exercise Progress frontend (GYM-036)
+
+`/progress` es un selector paginado de `GET /exercises` (active-only), con búsqueda
+real backend y metadata actual explícita de catálogo. `/progress/exercises/[exerciseId]`
+usa el UUID Exercise fuente, también por deep link desde Dashboard highlights e
+History snapshots; sourceExerciseId null no genera enlace.
+
+El detalle compone tres GET iniciales en paralelo: `/analytics/exercises/:exerciseId`
+(summary y occurrences paginadas all-time), `/records/exercises/:exerciseId`
+(current holders all-time) y `/training-trends/exercises/:exerciseId/weekly`
+(rango). No consulta History Exercise ni el catálogo actual para reconstruir historia.
+La cabecera prefiere el snapshot latest all-time de Analytics; fallback a metadata
+histórica de Records/Trends. Sin metadata no se inventa un nombre actual.
+
+Analytics `sessions` cuenta occurrences COMPLETED (incluidas zero-set), no una
+cuenta distinct de workouts. Las series/per-occurrence aggregates, heaviestSet y
+bestEstimated1RMSet se muestran tal como vienen. Records conserva la primera
+consecución del máximo actual; no es PR-event history ni la elección de heaviestSet
+de Analytics. Las cards enlazan directamente al workout histórico.
+
+Weekly Trends usa la timezone IANA del navegador. From date/To date son locales
+inclusivos, persistidos en URL; default: 12 semanas completas de calendario,
+incluida la actual. Para la API inclusiva se convierte el inicio local y el inicio
+local del día posterior a To menos 1 ms, no To + 24 h. DST conserva límites reales;
+midnights inexistentes se rechazan. Se respeta el máximo backend de 730 días entre
+instantes. Los primeros/últimos buckets pueden representar semanas parciales.
+
+Los buckets sparse conservan weekStart ASC; se elige una de seis métricas para
+barras HTML/CSS con una sola escala/unidad. Null es — sin barra, cero es real;
+anchos visuales no sustituyen cifras ni calculan analytics. performancePage y metric
+tienen estado URL. Cambiar rango consulta solo Trends y no filtra ni reinicia
+occurrences all-time; paginar consulta solo Analytics; cambiar métrica no hace GET.
+Cada lectura tiene loading/Retry propio, cancelación y gating por identidad para
+impedir responses obsoletas. Auth, canonical kg y boundaries de negocio existentes
+se conservan sin dependencias, endpoints, schema o conversiones nuevas.
+
 ## Calidad y build
 
 Ejecuta desde la raíz antes de cerrar cualquier ticket:
