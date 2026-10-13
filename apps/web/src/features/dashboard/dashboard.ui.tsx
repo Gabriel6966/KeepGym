@@ -80,12 +80,40 @@ export function DashboardSkeleton() {
           <Skeleton key={i} className="h-20" />
         ))}
       </div>
-      <div className="grid gap-6 lg:grid-cols-2">
-        <Skeleton className="h-64" />
+      <div className="grid items-start gap-6 lg:grid-cols-[1.35fr_1fr]">
+        <div
+          aria-hidden="true"
+          className="rounded-xl border border-slate-200 bg-white p-5 sm:p-6"
+        >
+          <Skeleton className="h-6 w-48" />
+          <Skeleton className="mt-3 h-10" />
+          <div className="mt-5 grid gap-4 sm:grid-cols-2">
+            {Array.from({ length: 4 }, (_, i) => (
+              <div key={i} className="rounded-lg border border-slate-200 p-4">
+                <Skeleton className="h-5 w-24" />
+                <Skeleton className="mt-4 h-9" />
+                <Skeleton className="mt-4 h-9" />
+                <Skeleton className="mt-4 h-12" />
+              </div>
+            ))}
+          </div>
+          <Skeleton className="mt-4 h-10" />
+        </div>
         <Skeleton className="h-64" />
       </div>
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+        {Array.from({ length: 3 }, (_, i) => (
+          <Skeleton key={i} className="h-56" />
+        ))}
+      </div>
       <Skeleton className="h-64" />
+      <Skeleton className="h-80" />
       <Skeleton className="h-64" />
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
+        {Array.from({ length: 5 }, (_, i) => (
+          <Skeleton key={i} className="h-72" />
+        ))}
+      </div>
     </div>
   );
 }

@@ -1157,6 +1157,28 @@ nuevos. Auth y Profile permanecen dominios separados y nunca se envía userId.
 Tests Node/React cubren HTTP, enums, PATCH, registro, estados y DATE-only en
 Europe/Madrid, UTC y America/New_York, sin dependencias nuevas.
 
+## Dashboard visualizations (GYM-035)
+
+Dashboard añade barras HTML/CSS nativas, complementarias a las cifras exactas del
+único `GET /dashboard/summary` ya cargado. Cada comparación semanal (workouts,
+sets, reps, volumen kg) tiene su propia escala Previous/Current; Current significa
+la semana seleccionada. Delta y percentageChange provienen del backend, también
+cuando el porcentaje es null (—). Normalizar anchos no calcula analytics, objetivos
+ni porcentajes públicos; ambas cifras cero producen barras de ancho cero.
+
+Muscle groups conserva el orden del backend y visualiza completedSets en una
+escala común de series, sin rankings. Workouts/reps/volumen siguen textuales;
+bodyweight conserva actividad y volumen 0 kg. Cada métrica corporal compara solo
+Previous/Latest de su propia secuencia y unidad (kg, %, cm), manteniendo change y
+measuredAt originales. Ausencia es — y no tiene barra numérica; no se fabrica cero,
+baseline ni interpretación favorable/desfavorable. Body-fat change conserva pp.
+
+Las barras son decorativas (`aria-hidden`); etiquetas y números permanecen
+accesibles. CSS responsive sustituye las tablas estrechas sin medidas DOM,
+canvas, animaciones nuevas o dependencias. El loading acompaña el nuevo layout;
+Retry, fechas locales, navegación semanal, enlaces y estados vacíos siguen siendo
+los existentes. No hay fan-out a APIs de dominio ni conversiones por UnitSystem.
+
 ## Calidad y build
 
 Ejecuta desde la raíz antes de cerrar cualquier ticket:

@@ -109,6 +109,9 @@ generados.
   no por 168 horas; presenta unidades canónicas sin conversión implícita.
   El access token frontend permanece en memoria y la refresh cookie sigue siendo
   exclusivamente responsabilidad del backend; no persistir tokens en localStorage.
+  Las escalas visuales son solo presentación: no sustituyen cifras ni cambios
+  derivados, no mezclan unidades incompatibles y preservan el orden del backend.
+  Las observaciones ausentes no se convierten en barras o valores cero.
 - El logging frontend renderiza los snapshots de WorkoutSession, nunca reconstruye
   ejercicios desde el catálogo mutable. Las sesiones terminales son read-only;
   las posiciones de SetEntry provienen del backend, también después de borrar.
