@@ -53,6 +53,15 @@ import type {
   BodyMeasurementPage,
   BodyMeasurementQuery,
 } from '../features/body/body.types';
+import {
+  isProfile,
+  isMissingProfileResponse,
+} from '../features/profile/profile.contract';
+import type {
+  Profile,
+  ProfileInput,
+  ProfileChanges,
+} from '../features/profile/profile.types';
 
 export class ApiError extends Error {
   constructor(
@@ -162,6 +171,53 @@ export class ApiClient {
       }),
     );
     this.token = tokenFrom(result);
+  }
+  async register(email: string, password: string): Promise<void> {
+    if (this.refreshPromise) await this.refreshPromise.catch(() => undefined);
+    const result = await this.json(
+      await this.send('/auth/register', this.body('POST', { email, password })),
+    );
+    this.token = tokenFrom(result);
+  }
+  async getProfile(signal?: AbortSignal): Promise<Profile | null> {
+    const response = await this.authenticated('/profile', { signal });
+    if (response.status === 404) {
+      let missing: unknown;
+      try {
+        missing = await response.json();
+      } catch {
+        throw new ApiError('response', 404);
+      }
+      if (isMissingProfileResponse(missing)) return null;
+      throw new ApiError('response', 404);
+    }
+    const result = await this.json(response);
+    if (!isProfile(result)) throw new ApiError('response');
+    return result;
+  }
+  createProfile(input: ProfileInput): Promise<Profile> {
+    return this.request(
+      '/profile',
+      isProfile,
+      this.body('POST', this.profileBody(input)),
+    );
+  }
+  updateProfile(input: ProfileChanges): Promise<Profile> {
+    return this.request(
+      '/profile',
+      isProfile,
+      this.body('PATCH', this.profileBody(input)),
+    );
+  }
+  private profileBody(input: ProfileChanges) {
+    return {
+      displayName: input.displayName,
+      birthDate: input.birthDate,
+      heightCm: input.heightCm,
+      experienceLevel: input.experienceLevel,
+      trainingGoal: input.trainingGoal,
+      unitSystem: input.unitSystem,
+    };
   }
   async logout(): Promise<void> {
     if (this.refreshPromise) await this.refreshPromise.catch(() => undefined);

@@ -2,6 +2,18 @@ import { dashboardReturnPath } from '../dashboard/calendar';
 import { historyUrl, normalizeHistoryUrl } from '../history/history-query';
 
 export function authReturnPath(value: string | null): string {
+  if (value?.startsWith('/profile') && !value.startsWith('//')) {
+    try {
+      const url = new URL(value, 'https://return.invalid');
+      if (
+        url.origin === 'https://return.invalid' &&
+        url.pathname === '/profile'
+      )
+        return '/profile';
+    } catch {
+      /* Keep the closed existing return contract. */
+    }
+  }
   if (
     (value?.startsWith('/workout') ||
       value?.startsWith('/templates') ||

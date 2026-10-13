@@ -9,7 +9,8 @@ import { buttonClass } from '../dashboard/dashboard.ui';
 export function AppHeader({
   active,
 }: {
-  active: 'dashboard' | 'workout' | 'templates' | 'history' | 'body';
+  active:
+    'dashboard' | 'workout' | 'templates' | 'history' | 'body' | 'profile';
 }) {
   const router = useRouter();
   const [pending, setPending] = useState(false),
@@ -49,7 +50,14 @@ export function AppHeader({
           className="flex flex-wrap items-center justify-end gap-1 sm:gap-3"
         >
           {(
-            ['dashboard', 'workout', 'templates', 'history', 'body'] as const
+            [
+              'dashboard',
+              'workout',
+              'templates',
+              'history',
+              'body',
+              'profile',
+            ] as const
           ).map((item) => (
             <Link
               key={item}
@@ -65,7 +73,9 @@ export function AppHeader({
                     ? 'Templates'
                     : item === 'history'
                       ? 'History'
-                      : 'Body'}
+                      : item === 'body'
+                        ? 'Body'
+                        : 'Profile'}
             </Link>
           ))}
           <button
