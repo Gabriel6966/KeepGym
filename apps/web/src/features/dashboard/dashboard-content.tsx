@@ -1,40 +1,12 @@
 import Link from 'next/link';
-import type {
-  DashboardSummary,
-  ExercisePerformance,
-  BodyMetric,
-  ComparisonKey,
-} from './dashboard.types';
-import { bodyMetricKeys } from './dashboard.types';
-import {
-  formatDate,
-  formatDuration,
-  formatKg,
-  formatNumber,
-  formatPercentage,
-  formatSignedNumber,
-} from './format';
+import type { DashboardSummary, ExercisePerformance } from './dashboard.types';
+import { formatDate, formatDuration, formatKg, formatNumber } from './format';
 import { EmptyState, Metric, Section } from './dashboard.ui';
-
-const comparisonLabels: Record<ComparisonKey, string> = {
-  completedWorkouts: 'Workouts',
-  completedSets: 'Sets',
-  totalReps: 'Reps',
-  totalVolumeKg: 'Volume (kg)',
-};
-const comparisonKeys = [
-  'completedWorkouts',
-  'completedSets',
-  'totalReps',
-  'totalVolumeKg',
-] as const;
-const bodyLabels: Record<BodyMetric, { label: string; unit: string }> = {
-  weightKg: { label: 'Weight', unit: 'kg' },
-  bodyFatPercent: { label: 'Body fat', unit: '%' },
-  waistCm: { label: 'Waist', unit: 'cm' },
-  chestCm: { label: 'Chest', unit: 'cm' },
-  hipsCm: { label: 'Hips', unit: 'cm' },
-};
+import {
+  WeeklyComparisonVisualization,
+  MuscleGroupVisualization,
+  BodyProgressVisualization,
+} from './dashboard-visualizations';
 function PerformanceDetails({
   value,
   title,
@@ -153,57 +125,13 @@ export function DashboardContent({
             '. Changes are descriptive, not a rating.'
           }
         >
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-96 text-left text-sm tabular-nums">
-              <caption className="sr-only">
-                Selected week versus previous week
-              </caption>
-              <thead>
-                <tr className="border-b border-slate-200 text-xs text-slate-500">
-                  {['Metric', 'Previous', 'Current', 'Change', '% change'].map(
-                    (label) => (
-                      <th
-                        key={label}
-                        scope="col"
-                        className="px-2 pb-3 font-medium first:pl-0 last:pr-0"
-                      >
-                        {label}
-                      </th>
-                    ),
-                  )}
-                </tr>
-              </thead>
-              <tbody>
-                {comparisonKeys.map((key) => (
-                  <tr
-                    key={key}
-                    className="border-b border-slate-100 last:border-0"
-                  >
-                    <th
-                      scope="row"
-                      className="py-3 pr-2 font-medium text-slate-700"
-                    >
-                      {comparisonLabels[key]}
-                    </th>
-                    <td className="px-2 py-3">
-                      {number(comparison[key].previous)}
-                    </td>
-                    <td className="px-2 py-3">{number(week[key])}</td>
-                    <td className="px-2 py-3">
-                      {formatSignedNumber(comparison[key].delta, locale)}
-                    </td>
-                    <td className="py-3 pl-2">
-                      {formatPercentage(
-                        comparison[key].percentageChange,
-                        locale,
-                      )}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+          <WeeklyComparisonVisualization
+            week={week}
+            comparison={comparison}
+            locale={locale}
+          />
           <p className="mt-4 text-xs text-slate-500">
+            Current is the selected week. Each metric uses its own visual scale.
             — means the percentage is undefined because the previous value was
             zero.
           </p>
@@ -238,56 +166,10 @@ export function DashboardContent({
         title="Muscle groups"
         description="Selected week · primary muscle only. Secondary muscles are not counted."
       >
-        {summary.muscleGroups.length === 0 ? (
-          <EmptyState>No muscle-group activity this week.</EmptyState>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-96 text-left text-sm tabular-nums">
-              <caption className="sr-only">
-                Primary muscle activity for the selected week
-              </caption>
-              <thead>
-                <tr className="border-b border-slate-200 text-xs text-slate-500">
-                  {['Muscle group', 'Workouts', 'Sets', 'Reps', 'Volume'].map(
-                    (label) => (
-                      <th
-                        scope="col"
-                        key={label}
-                        className="px-2 pb-3 font-medium first:pl-0 last:pr-0"
-                      >
-                        {label}
-                      </th>
-                    ),
-                  )}
-                </tr>
-              </thead>
-              <tbody>
-                {summary.muscleGroups.map((group) => (
-                  <tr
-                    key={group.muscleGroup}
-                    className="border-b border-slate-100 last:border-0"
-                  >
-                    <th
-                      scope="row"
-                      className="py-3 pr-2 font-medium text-slate-700"
-                    >
-                      {group.muscleGroup[0] +
-                        group.muscleGroup.slice(1).toLowerCase()}
-                    </th>
-                    <td className="px-2 py-3">
-                      {number(group.completedWorkouts)}
-                    </td>
-                    <td className="px-2 py-3">{number(group.completedSets)}</td>
-                    <td className="px-2 py-3">{number(group.totalReps)}</td>
-                    <td className="py-3 pl-2 whitespace-nowrap">
-                      {kg(group.totalVolumeKg)}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
+        <MuscleGroupVisualization
+          groups={summary.muscleGroups}
+          locale={locale}
+        />
       </Section>
       <Section
         id="recent-workouts"
@@ -424,64 +306,11 @@ export function DashboardContent({
         >
           Manage measurements
         </Link>
-        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
-          {bodyMetricKeys.map((key) => {
-            const metric = summary.bodyProgress[key],
-              { label, unit } = bodyLabels[key];
-            const value = (n: number | null) =>
-              n === null
-                ? '—'
-                : `${number(n)}${unit === '%' ? '' : ' '}${unit}`;
-            return (
-              <article
-                key={key}
-                className="min-w-0 rounded-lg border border-slate-200 p-4"
-              >
-                <h3 className="text-sm font-medium text-slate-600">{label}</h3>
-                <p className="mt-3 text-2xl font-semibold tabular-nums">
-                  {value(metric.latest?.value ?? null)}
-                </p>
-                {metric.latest ? (
-                  <time
-                    dateTime={metric.latest.measuredAt}
-                    className="mt-1 block text-xs text-slate-500"
-                  >
-                    Measured {date(metric.latest.measuredAt)}
-                  </time>
-                ) : (
-                  <p className="mt-1 text-xs text-slate-500">No observations</p>
-                )}
-                <dl className="mt-4 space-y-3">
-                  <Metric
-                    label="Previous"
-                    value={value(metric.previous?.value ?? null)}
-                  />
-                  {metric.previous && (
-                    <div>
-                      <dt className="sr-only">Previous measurement date</dt>
-                      <dd>
-                        <time
-                          dateTime={metric.previous.measuredAt}
-                          className="text-xs text-slate-500"
-                        >
-                          {date(metric.previous.measuredAt)}
-                        </time>
-                      </dd>
-                    </div>
-                  )}
-                  <Metric
-                    label="Change"
-                    value={
-                      metric.change === null
-                        ? '—'
-                        : `${formatSignedNumber(metric.change, locale)} ${unit === '%' ? 'pp' : unit}`
-                    }
-                  />
-                </dl>
-              </article>
-            );
-          })}
-        </div>
+        <BodyProgressVisualization
+          progress={summary.bodyProgress}
+          timezone={timezone}
+          locale={locale}
+        />
         <p className="mt-4 text-xs text-slate-500">
           Body-fat changes are shown in percentage points (pp). No health or
           progress rating is inferred.
