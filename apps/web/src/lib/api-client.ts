@@ -62,6 +62,17 @@ import type {
   ProfileInput,
   ProfileChanges,
 } from '../features/profile/profile.types';
+import {
+  isExerciseAnalytics,
+  isExerciseRecords,
+  isExerciseWeeklyTrends,
+} from '../features/progress/progress.contract';
+import type {
+  ExerciseAnalytics,
+  ExerciseRecords,
+  ExerciseWeeklyTrends,
+  WeeklyQuery,
+} from '../features/progress/progress.types';
 
 export class ApiError extends Error {
   constructor(
@@ -504,6 +515,91 @@ export class ApiClient {
     ] as const)
       if (query[key] !== undefined) params.set(key, query[key]);
     return this.request('/exercises?' + params, isCatalogPage, { signal });
+  }
+  async getExerciseAnalytics(
+    exerciseId: string,
+    page = 1,
+    limit = 20,
+    signal?: AbortSignal,
+  ): Promise<ExerciseAnalytics> {
+    if (!validHistoryPagination(page, limit))
+      throw new ApiError('configuration');
+    const result = await this.request(
+      '/analytics/exercises/' +
+        this.pathSegment(exerciseId) +
+        '?' +
+        new URLSearchParams({ page: String(page), limit: String(limit) }),
+      isExerciseAnalytics,
+      { signal },
+    );
+    if (
+      result.page !== page ||
+      result.limit !== limit ||
+      !this.progressIdentity(result.exercise, exerciseId) ||
+      result.performances.some(
+        (row) => !this.progressIdentity(row.exercise, exerciseId),
+      )
+    )
+      throw new ApiError('response');
+    return result;
+  }
+  async getExerciseRecords(
+    exerciseId: string,
+    signal?: AbortSignal,
+  ): Promise<ExerciseRecords> {
+    const result = await this.request(
+      '/records/exercises/' + this.pathSegment(exerciseId),
+      isExerciseRecords,
+      { signal },
+    );
+    if (!this.progressIdentity(result.exercise, exerciseId))
+      throw new ApiError('response');
+    return result;
+  }
+  async getExerciseWeeklyTrends(
+    exerciseId: string,
+    query: WeeklyQuery,
+    signal?: AbortSignal,
+  ): Promise<ExerciseWeeklyTrends> {
+    const from = historyTimestamp(query.from),
+      to = historyTimestamp(query.to);
+    if (
+      !from ||
+      !to ||
+      from > to ||
+      to.getTime() - from.getTime() > 63_072_000_000 ||
+      canonicalBrowserTimezone(query.timezone) !== query.timezone
+    )
+      throw new ApiError('configuration');
+    const result = await this.request(
+      '/training-trends/exercises/' +
+        this.pathSegment(exerciseId) +
+        '/weekly?' +
+        new URLSearchParams({
+          from: query.from,
+          to: query.to,
+          timezone: query.timezone,
+        }),
+      isExerciseWeeklyTrends,
+      { signal },
+    );
+    if (
+      !this.progressIdentity(result.exercise, exerciseId) ||
+      result.timezone !== query.timezone ||
+      Date.parse(result.from) !== from.getTime() ||
+      Date.parse(result.to) !== to.getTime()
+    )
+      throw new ApiError('response');
+    return result;
+  }
+  private progressIdentity(
+    metadata: { sourceExerciseId: string | null } | null,
+    exerciseId: string,
+  ): boolean {
+    return (
+      metadata === null ||
+      metadata.sourceExerciseId?.toLowerCase() === exerciseId.toLowerCase()
+    );
   }
   private templatePath(id: string): string {
     return '/workout-templates/' + this.pathSegment(id);

@@ -10,7 +10,13 @@ export function AppHeader({
   active,
 }: {
   active:
-    'dashboard' | 'workout' | 'templates' | 'history' | 'body' | 'profile';
+    | 'dashboard'
+    | 'workout'
+    | 'templates'
+    | 'history'
+    | 'body'
+    | 'profile'
+    | 'progress';
 }) {
   const router = useRouter();
   const [pending, setPending] = useState(false),
@@ -57,6 +63,7 @@ export function AppHeader({
               'history',
               'body',
               'profile',
+              'progress',
             ] as const
           ).map((item) => (
             <Link
@@ -75,7 +82,9 @@ export function AppHeader({
                       ? 'History'
                       : item === 'body'
                         ? 'Body'
-                        : 'Profile'}
+                        : item === 'profile'
+                          ? 'Profile'
+                          : 'Progress'}
             </Link>
           ))}
           <button

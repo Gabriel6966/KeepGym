@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { buttonClass, EmptyState, Metric } from '../dashboard/dashboard.ui';
 import { formatKg, formatNumber } from '../dashboard/format';
 import type { SessionExercise } from '../workout/workout.types';
+import { exerciseProgressUrl } from '../progress/progress-query';
 import type {
   WorkoutHistoryDetail,
   WorkoutHistorySummary,
@@ -102,7 +103,17 @@ function HistoricalExercise({ entry }: { entry: SessionExercise }) {
         Exercise {entry.position}
       </p>
       <h3 className="mt-1 text-xl font-semibold [overflow-wrap:anywhere]">
-        {entry.exercise.name}
+        {entry.exercise.sourceExerciseId === null ? (
+          entry.exercise.name
+        ) : (
+          <Link
+            href={exerciseProgressUrl(entry.exercise.sourceExerciseId)}
+            className="rounded focus-visible:outline-2 focus-visible:outline-teal-700 hover:underline"
+            aria-label={'View progress of ' + entry.exercise.name}
+          >
+            {entry.exercise.name}
+          </Link>
+        )}
       </h3>
       <p className="mt-2 text-xs text-slate-500">
         {entry.exercise.primaryMuscle} ·{' '}
