@@ -124,6 +124,11 @@ generados.
   PATCH distingue campos omitidos de null explícito y conserva measuredAt si no
   cambia. Los horarios locales se serializan con timezone explícita; los huecos
   DST no se desplazan silenciosamente. Los cambios corporales siguen en backend.
+- El onboarding frontend compone Auth y Profile como operaciones separadas.
+  birthDate conserva su DATE-only original, sin convertirse por timestamps UTC;
+  UnitSystem es una preferencia visual y no cambia el almacenamiento canónico.
+  Solo la ausencia explícita de Profile permite iniciar onboarding, no errores
+  de red o servidor; las escrituras ambiguas se reconcilian antes de repetirlas.
 
 ## Seguridad
 

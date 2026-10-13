@@ -1121,6 +1121,42 @@ Tests Node/React cubren contratos, Decimal, nulabilidad, PATCH, reloj local/DST 
 procesos TZ aislados, loading/error y estados. El ciclo de mediciones parciales,
 edición y eliminación se verifica con API/Web reales sin nuevas dependencias.
 
+## Profile y onboarding frontend (GYM-034)
+
+`/register` crea una cuenta real con `POST /auth/register` (email y password de
+15–128 caracteres, sin reglas de complejidad adicionales). Confirm password es
+solo UX y no se envía. Reutiliza access token en memoria, refresh cookie HttpOnly
+y cliente existente: no se persisten tokens ni passwords.
+
+Tras registro/login se consulta deliberadamente `GET /profile`. Únicamente el
+404 específico «Profile not found.» significa que falta Profile; otros fallos
+mantienen un error y permiten reintentar la lectura, nunca repetir el registro.
+Un perfil ausente conduce a `/onboarding`, conservando un return path interno
+validado. Al terminar `POST /profile` se continúa a ese destino o Dashboard.
+No hay Skip, ni consultas Profile globales en cada página. Un usuario autenticado
+que abre `/register` continúa a su destino/onboarding; `/onboarding` con Profile
+existente redirige a `/profile` sin intentar crear otro.
+
+`/profile` recupera y edita el Profile propio con `PATCH /profile`, también tras
+refresh/deep link. Envía solo cambios; blank nullable implica null explícito.
+Solo displayName es obligatorio (trim exterior, 1–80 caracteres; espacios internos
+preservados). birthDate es una fecha real no futura `YYYY-MM-DD`, nunca un
+timestamp ni una conversión UTC. heightCm es opcional, entero 50–300 cm.
+experienceLevel: BEGINNER/INTERMEDIATE/ADVANCED; trainingGoal:
+GENERAL_FITNESS/MUSCLE_GAIN/STRENGTH/ENDURANCE. Estos campos admiten null.
+unitSystem: METRIC/IMPERIAL (METRIC por defecto), preferencia preparada para una
+conversión visual futura; no convierte altura ni cambia unidades canónicas.
+
+Loading, validaciones asociadas y errores sanitizados conservan drafts y bloquean
+double submit. Ante POST/PATCH ambiguo no hay replay: Reload reconcilia el backend.
+Un POST concurrente 409 se reconcilia leyendo el Profile existente. El header añade
+Profile sin consultas adicionales. Peso y medidas siguen exclusivamente en Body
+Measurements, accesible por enlace; no hay BMI, BodyAnalytics, avatar ni goals
+nuevos. Auth y Profile permanecen dominios separados y nunca se envía userId.
+
+Tests Node/React cubren HTTP, enums, PATCH, registro, estados y DATE-only en
+Europe/Madrid, UTC y America/New_York, sin dependencias nuevas.
+
 ## Calidad y build
 
 Ejecuta desde la raíz antes de cerrar cualquier ticket:
