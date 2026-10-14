@@ -9,6 +9,7 @@ import { inputClass, WorkoutLoading } from '../workout/workout.ui';
 import { useProgressRead } from './progress-read';
 import { selectorQuery } from './progress-query';
 import { ProgressSelector } from './progress-selector';
+import { MuscleProgressLink } from './muscle-content';
 import { durationMetrics, trainingMetrics } from './training.types';
 import {
   normalizeTrainingRange,
@@ -271,6 +272,7 @@ export function TrainingProgressOverview() {
         >
           <ProgressSelector />
         </Section>
+        <MuscleProgressLink range={range} metric={state.trainingMetric} />
       </main>
     </div>
   );

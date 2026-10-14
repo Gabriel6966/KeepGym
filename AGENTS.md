@@ -141,6 +141,10 @@ generados.
   compartido, adaptado al contrato temporal real de cada API. Consistency no se
   infiere de buckets sparse de Trends; totales y averages de Duration siguen en
   backend. Cambiar métricas visuales no consulta datos ni reinicia el selector.
+- Muscle Group Progress representa buckets ya atribuidos por backend; el filtro
+  local no incorpora secondaryMuscles ni sintetiza pares semana/grupo ausentes.
+  Porcentajes, ratios o balance muscular requieren un dominio explícito futuro,
+  no cálculos frontend; el orden visual conserva la semántica backend.
 
 ## Seguridad
 

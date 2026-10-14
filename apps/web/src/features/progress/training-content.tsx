@@ -43,16 +43,22 @@ export function TrainingWeekForm({
   range,
   timezone,
   onApply,
+  validateRange = (value, zone) => trainingRangeQueries(value, zone) !== null,
+  helpText = 'Both Mondays are included. The range applies to all three training sections below.',
+  errorText = 'Choose real Mondays in order, up to 104 inclusive weeks, with representable local midnight boundaries.',
 }: {
   range: TrainingWeekRange;
   timezone: string;
   onApply: (value: TrainingWeekRange) => void;
+  validateRange?: (value: TrainingWeekRange, timezone: string) => boolean;
+  helpText?: string;
+  errorText?: string;
 }) {
   const [draft, setDraft] = useState(range),
     [error, setError] = useState(false);
   function apply(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!trainingRangeQueries(draft, timezone)) {
+    if (!validateRange(draft, timezone)) {
       setError(true);
       return;
     }
@@ -101,8 +107,7 @@ export function TrainingWeekForm({
         id="training-range-help"
         className="text-xs text-slate-500 sm:col-span-3"
       >
-        Both Mondays are included. The range applies to all three training
-        sections below.
+        {helpText}
       </p>
       {error && (
         <p
@@ -110,8 +115,7 @@ export function TrainingWeekForm({
           role="alert"
           className="text-sm text-red-800 sm:col-span-3"
         >
-          Choose real Mondays in order, up to 104 inclusive weeks, with
-          representable local midnight boundaries.
+          {errorText}
         </p>
       )}
     </form>
