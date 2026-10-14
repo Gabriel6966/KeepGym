@@ -1181,7 +1181,7 @@ los existentes. No hay fan-out a APIs de dominio ni conversiones por UnitSystem.
 
 ## Exercise Progress frontend (GYM-036)
 
-`/progress` es un selector paginado de `GET /exercises` (active-only), con búsqueda
+`/progress` conserva un selector paginado de `GET /exercises` (active-only), con búsqueda
 real backend y metadata actual explícita de catálogo. `/progress/exercises/[exerciseId]`
 usa el UUID Exercise fuente, también por deep link desde Dashboard highlights e
 History snapshots; sourceExerciseId null no genera enlace.
@@ -1214,6 +1214,36 @@ occurrences all-time; paginar consulta solo Analytics; cambiar métrica no hace 
 Cada lectura tiene loading/Retry propio, cancelación y gating por identidad para
 impedir responses obsoletas. Auth, canonical kg y boundaries de negocio existentes
 se conservan sin dependencias, endpoints, schema o conversiones nuevas.
+
+## Training Progress Overview frontend (GYM-037)
+
+`/progress` combina Weekly Training Trends, Training Consistency, Workout Duration
+y el selector de Exercise Progress. Un único rango From week/To week de lunes
+DATE-only incluye ambos extremos; default: 12 semanas incluyendo la semana local
+actual. Rango, trainingMetric, durationMetric y búsqueda/página del selector viven
+en URL y sobreviven refresh/back/forward.
+
+Tres lecturas analytics paralelas usan los endpoints existentes:
+`GET /training-trends/weekly`, `GET /training-consistency/weekly` y
+`GET /training-duration/weekly`. El catálogo añade una cuarta lectura inicial.
+Trends/Duration reciben instantes inclusivos desde el primer lunes local hasta
+el siguiente lunes al último menos 1 ms; Consistency recibe lunes inclusivos y
+resuelve su intervalo half-open internamente. La timezone IANA es la del navegador;
+los límites usan calendario local, también en DST. El máximo compartido es 104
+semanas inclusivas (Consistency), respetando también los 730 días de Trends/Duration.
+
+Trends y Duration conservan buckets sparse y orden backend. Cada gráfica muestra
+una métrica/unidad y sus valores exactos; los segundos se formatean sin recalcular
+duración. Las seis métricas de Consistency y el summary/average de Duration vienen
+del backend, nunca de sumar buckets o reconstruir rachas. Zero-set COMPLETED
+workouts cuentan en los tres dominios; bodyweight mantiene volumen cero real.
+
+Cambiar rango relee solo las tres analytics; cambiar una métrica no hace GET;
+buscar/paginar ejercicios relee solo catálogo y conserva el rango. Se mantienen
+los deep links `/progress/exercises/[exerciseId]`, auth y snapshots de GYM-036.
+Cada sección tiene loading/Retry independiente y cancela lecturas obsoletas, sin
+convertir fallos en empty. No hay dependencias, backend/schema changes, rankings,
+consistency percentages ni frontend analytics nuevos.
 
 ## Calidad y build
 

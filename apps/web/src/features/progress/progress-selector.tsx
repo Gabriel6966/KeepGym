@@ -3,7 +3,6 @@ import Link from 'next/link';
 import { useCallback, useState, type FormEvent } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { apiClient, ApiError } from '../../lib/api-client';
-import { AppHeader } from '../navigation/app-header';
 import { buttonClass, EmptyState } from '../dashboard/dashboard.ui';
 import {
   inputClass,
@@ -11,11 +10,8 @@ import {
   WorkoutLoading,
 } from '../workout/workout.ui';
 import type { CatalogExercise } from '../templates/templates.types';
-import {
-  selectorQuery,
-  selectorUrl,
-  exerciseProgressUrl,
-} from './progress-query';
+import { selectorQuery, exerciseProgressUrl } from './progress-query';
+import { trainingSelectorUrl, trainingReturnPath } from './training-query';
 import { useProgressRead } from './progress-read';
 
 export function ProgressExerciseCards({
@@ -33,9 +29,9 @@ export function ProgressExerciseCards({
           data-progress-catalog-id={exercise.id}
           className="min-w-0 rounded-xl border border-slate-200 bg-white p-5"
         >
-          <h2 className="text-lg font-semibold [overflow-wrap:anywhere]">
+          <h3 className="text-lg font-semibold [overflow-wrap:anywhere]">
             {exercise.name}
-          </h2>
+          </h3>
           <p className="mt-2 text-sm text-slate-500">
             {exercise.primaryMuscle} · {exercise.equipment.replaceAll('_', ' ')}{' '}
             · {exercise.movementPattern.replaceAll('_', ' ')}
@@ -116,71 +112,90 @@ export function ProgressSelector() {
       ),
     [q, page],
   );
-  const onError = useCallback(
-    (error: unknown) => {
-      if (error instanceof ApiError && error.kind === 'unauthorized')
-        router.replace(
-          '/login?' +
-            new URLSearchParams({ returnTo: selectorUrl({ q, page }) }),
-        );
-    },
-    [q, page, router],
-  );
+  const onError = (error: unknown) => {
+    if (error instanceof ApiError && error.kind === 'unauthorized')
+      router.replace(
+        '/login?' +
+          new URLSearchParams({
+            returnTo: trainingReturnPath(
+              new URLSearchParams(params.toString()),
+            ),
+          }),
+      );
+  };
   const resource = useProgressRead(key, load, onError);
   return (
-    <div className="min-h-screen bg-slate-50">
-      <AppHeader active="progress" />
-      <main id="main-content" className="mx-auto max-w-5xl px-4 py-8 sm:px-6">
-        <h1 className="mb-3 text-3xl font-semibold tracking-tight">
-          Exercise progress
-        </h1>
-        <p className="mb-6 text-sm text-slate-500">
-          Select an active catalog exercise to review your historical
-          performance. Historical deep links also work for inactive sources.
-        </p>
-        <SearchForm
-          key={q}
-          q={q}
-          onSearch={(value) => router.push(selectorUrl({ q: value, page: 1 }))}
-        />
-        {resource.data ? (
-          <>
-            <ProgressExerciseCards items={resource.data.items} />
-            <nav
-              aria-label="Progress exercise pages"
-              className="mt-6 flex flex-wrap items-center justify-between gap-3"
+    <>
+      <p className="mb-6 text-sm text-slate-500">
+        Select an active catalog exercise to review your historical performance.
+        Historical deep links also work for inactive sources.
+      </p>
+      <SearchForm
+        key={q}
+        q={q}
+        onSearch={(value) =>
+          router.push(
+            trainingSelectorUrl(new URLSearchParams(params.toString()), {
+              q: value,
+              page: 1,
+            }),
+            { scroll: false },
+          )
+        }
+      />
+      {resource.data ? (
+        <>
+          <ProgressExerciseCards items={resource.data.items} />
+          <nav
+            aria-label="Progress exercise pages"
+            className="mt-6 flex flex-wrap items-center justify-between gap-3"
+          >
+            <button
+              type="button"
+              className={buttonClass}
+              disabled={page <= 1}
+              onClick={() =>
+                router.push(
+                  trainingSelectorUrl(new URLSearchParams(params.toString()), {
+                    q,
+                    page: page - 1,
+                  }),
+                  { scroll: false },
+                )
+              }
             >
-              <button
-                type="button"
-                className={buttonClass}
-                disabled={page <= 1}
-                onClick={() => router.push(selectorUrl({ q, page: page - 1 }))}
-              >
-                Previous exercises
-              </button>
-              <span>
-                Page {resource.data.page} of{' '}
-                {Math.max(1, resource.data.totalPages)}
-              </span>
-              <button
-                type="button"
-                className={buttonClass}
-                disabled={page >= resource.data.totalPages}
-                onClick={() => router.push(selectorUrl({ q, page: page + 1 }))}
-              >
-                Next exercises
-              </button>
-            </nav>
-          </>
-        ) : resource.failed ? (
-          <WorkoutError
-            title="Exercise selector unavailable"
-            onRetry={resource.retry}
-          />
-        ) : (
-          <WorkoutLoading label="Loading exercises..." />
-        )}
-      </main>
-    </div>
+              Previous exercises
+            </button>
+            <span>
+              Page {resource.data.page} of{' '}
+              {Math.max(1, resource.data.totalPages)}
+            </span>
+            <button
+              type="button"
+              className={buttonClass}
+              disabled={page >= resource.data.totalPages}
+              onClick={() =>
+                router.push(
+                  trainingSelectorUrl(new URLSearchParams(params.toString()), {
+                    q,
+                    page: page + 1,
+                  }),
+                  { scroll: false },
+                )
+              }
+            >
+              Next exercises
+            </button>
+          </nav>
+        </>
+      ) : resource.failed ? (
+        <WorkoutError
+          title="Exercise selector unavailable"
+          onRetry={resource.retry}
+        />
+      ) : (
+        <WorkoutLoading label="Loading exercises..." />
+      )}
+    </>
   );
 }

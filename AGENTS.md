@@ -137,6 +137,10 @@ generados.
   derivadas en backend; el frontend no densifica, recalcula e1RM ni elige holders.
   Analytics summary/occurrences y Records all-time se etiquetan separadamente del
   rango local de Weekly Trends; la metadata histórica no se reconstruye del catálogo.
+- Training Progress compone Trends, Consistency y Duration con un rango semanal
+  compartido, adaptado al contrato temporal real de cada API. Consistency no se
+  infiere de buckets sparse de Trends; totales y averages de Duration siguen en
+  backend. Cambiar métricas visuales no consulta datos ni reinicia el selector.
 
 ## Seguridad
 
