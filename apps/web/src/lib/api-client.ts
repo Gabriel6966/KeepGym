@@ -85,6 +85,8 @@ import type {
   WeeklyConsistency,
   WeeklyDuration,
 } from '../features/progress/training.types';
+import { isWeeklyMuscleGroups } from '../features/progress/muscle.contract';
+import type { WeeklyMuscleGroups } from '../features/progress/muscle.types';
 
 export class ApiError extends Error {
   constructor(
@@ -612,6 +614,17 @@ export class ApiClient {
       '/training-trends/weekly',
       query,
       isWeeklyTraining,
+      signal,
+    );
+  }
+  getMuscleGroupWeeklyTrends(
+    query: WeeklyQuery,
+    signal?: AbortSignal,
+  ): Promise<WeeklyMuscleGroups> {
+    return this.trainingInstantRead(
+      '/training-trends/muscle-groups/weekly',
+      query,
+      isWeeklyMuscleGroups,
       signal,
     );
   }

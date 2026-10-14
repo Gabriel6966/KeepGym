@@ -2,6 +2,7 @@ import { dashboardReturnPath } from '../dashboard/calendar';
 import { historyUrl, normalizeHistoryUrl } from '../history/history-query';
 import { safeProgressReturn } from '../progress/progress-query';
 import { trainingReturnPath } from '../progress/training-query';
+import { muscleProgressUrl, muscleUrlState } from '../progress/muscle-query';
 
 export function authReturnPath(value: string | null): string {
   if (value?.startsWith('/progress') && !value.startsWith('//')) {
@@ -11,7 +12,9 @@ export function authReturnPath(value: string | null): string {
         const path =
           url.pathname === '/progress'
             ? trainingReturnPath(url.searchParams)
-            : safeProgressReturn(url);
+            : url.pathname === '/progress/muscle-groups'
+              ? muscleProgressUrl(muscleUrlState(url.searchParams))
+              : safeProgressReturn(url);
         if (path) return path;
       }
     } catch {

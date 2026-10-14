@@ -1245,6 +1245,37 @@ Cada sección tiene loading/Retry independiente y cancela lecturas obsoletas, si
 convertir fallos en empty. No hay dependencias, backend/schema changes, rankings,
 consistency percentages ni frontend analytics nuevos.
 
+## Muscle Group Progress frontend (GYM-038)
+
+`/progress/muscle-groups` profundiza en la actividad semanal muscular desde un
+enlace en `/progress`; el overview sigue haciendo cuatro lecturas iniciales y no
+consulta muscle analytics. El enlace conserva el rango y la métrica seleccionada.
+
+La página usa una sola lectura `GET /training-trends/muscle-groups/weekly` por
+rango. From week/To week son lunes DATE-only inclusivos, default: doce semanas
+incluyendo la actual. La IANA timezone viene del navegador; el intervalo API
+inclusivo cubre desde el primer lunes local hasta el siguiente lunes al último
+menos 1 ms, con aritmética de calendario/DST y máximo 730 días entre instantes.
+
+El backend ya devuelve `{ weekStart, muscleGroups }`: solo SetEntry de sesiones
+COMPLETED atribuidos al primaryMuscle snapshot; secondary muscles no contribuyen.
+completedWorkouts es distinct por sesión/grupo, también con varios ejercicios del
+mismo músculo. Bodyweight mantiene sets/reps/workouts y volumen externo cero real.
+No hay consultas al catálogo actual ni reconstrucción de atribuciones frontend.
+
+Se muestra una de cuatro métricas: workouts, sets, reps o volumen kg. El filtro
+All/enum canónico (incluidos grupos sin actividad) opera localmente sobre el rango
+completo cargado. Métrica y filtro viven en URL y no hacen GET adicional; cambiar
+rango hace uno. Los buckets/rows sparse y su orden backend se conservan; el filtro
+omite semanas sin rows visibles, nunca inserta ceros. General empty y filtered
+empty son estados distintos.
+
+Las barras usan una escala visual por semana entre los grupos visibles. No son
+porcentajes de distribución, y los valores exactos siempre permanecen accesibles.
+No se suman totales del rango ni se producen rankings, balance scores o consejos.
+Loading/error/Retry y AbortSignal/gating reutilizan Progress. Refresh/deep links y
+back/forward preservan rango, métrica y grupo; no hay dependencias o APIs nuevas.
+
 ## Calidad y build
 
 Ejecuta desde la raíz antes de cerrar cualquier ticket:
