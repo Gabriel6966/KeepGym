@@ -1,13 +1,17 @@
 import { dashboardReturnPath } from '../dashboard/calendar';
 import { historyUrl, normalizeHistoryUrl } from '../history/history-query';
 import { safeProgressReturn } from '../progress/progress-query';
+import { trainingReturnPath } from '../progress/training-query';
 
 export function authReturnPath(value: string | null): string {
   if (value?.startsWith('/progress') && !value.startsWith('//')) {
     try {
       const url = new URL(value, 'https://return.invalid');
       if (url.origin === 'https://return.invalid') {
-        const path = safeProgressReturn(url);
+        const path =
+          url.pathname === '/progress'
+            ? trainingReturnPath(url.searchParams)
+            : safeProgressReturn(url);
         if (path) return path;
       }
     } catch {

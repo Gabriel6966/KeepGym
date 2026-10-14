@@ -73,6 +73,18 @@ import type {
   ExerciseWeeklyTrends,
   WeeklyQuery,
 } from '../features/progress/progress.types';
+import {
+  isWeeklyTraining,
+  isWeeklyConsistency,
+  isWeeklyDuration,
+} from '../features/progress/training.contract';
+import { validConsistencyQuery } from '../features/progress/training-query';
+import type {
+  ConsistencyQuery,
+  WeeklyTraining,
+  WeeklyConsistency,
+  WeeklyDuration,
+} from '../features/progress/training.types';
 
 export class ApiError extends Error {
   constructor(
@@ -585,6 +597,86 @@ export class ApiClient {
     );
     if (
       !this.progressIdentity(result.exercise, exerciseId) ||
+      result.timezone !== query.timezone ||
+      Date.parse(result.from) !== from.getTime() ||
+      Date.parse(result.to) !== to.getTime()
+    )
+      throw new ApiError('response');
+    return result;
+  }
+  getWeeklyTraining(
+    query: WeeklyQuery,
+    signal?: AbortSignal,
+  ): Promise<WeeklyTraining> {
+    return this.trainingInstantRead(
+      '/training-trends/weekly',
+      query,
+      isWeeklyTraining,
+      signal,
+    );
+  }
+  getWeeklyDuration(
+    query: WeeklyQuery,
+    signal?: AbortSignal,
+  ): Promise<WeeklyDuration> {
+    return this.trainingInstantRead(
+      '/training-duration/weekly',
+      query,
+      isWeeklyDuration,
+      signal,
+    );
+  }
+  async getWeeklyConsistency(
+    query: ConsistencyQuery,
+    signal?: AbortSignal,
+  ): Promise<WeeklyConsistency> {
+    if (!validConsistencyQuery(query)) throw new ApiError('configuration');
+    const result = await this.request(
+      '/training-consistency/weekly?' +
+        new URLSearchParams({
+          fromWeekStart: query.fromWeekStart,
+          toWeekStart: query.toWeekStart,
+          timezone: query.timezone,
+        }),
+      isWeeklyConsistency,
+      { signal },
+    );
+    if (
+      result.fromWeekStart !== query.fromWeekStart ||
+      result.toWeekStart !== query.toWeekStart ||
+      result.timezone !== query.timezone
+    )
+      throw new ApiError('response');
+    return result;
+  }
+  private async trainingInstantRead<T extends WeeklyQuery>(
+    path: string,
+    query: WeeklyQuery,
+    guard: (value: unknown) => value is T,
+    signal?: AbortSignal,
+  ): Promise<T> {
+    const from = historyTimestamp(query.from),
+      to = historyTimestamp(query.to);
+    if (
+      !from ||
+      !to ||
+      from > to ||
+      to.getTime() - from.getTime() > 63_072_000_000 ||
+      canonicalBrowserTimezone(query.timezone) !== query.timezone
+    )
+      throw new ApiError('configuration');
+    const result = await this.request(
+      path +
+        '?' +
+        new URLSearchParams({
+          from: query.from,
+          to: query.to,
+          timezone: query.timezone,
+        }),
+      guard,
+      { signal },
+    );
+    if (
       result.timezone !== query.timezone ||
       Date.parse(result.from) !== from.getTime() ||
       Date.parse(result.to) !== to.getTime()
