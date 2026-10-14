@@ -87,6 +87,14 @@ import type {
 } from '../features/progress/training.types';
 import { isWeeklyMuscleGroups } from '../features/progress/muscle.contract';
 import type { WeeklyMuscleGroups } from '../features/progress/muscle.types';
+import {
+  isTrainingCalendar,
+  validCalendarQuery,
+} from '../features/history/calendar.contract';
+import type {
+  CalendarQuery,
+  TrainingCalendar,
+} from '../features/history/calendar.types';
 
 export class ApiError extends Error {
   constructor(
@@ -267,6 +275,29 @@ export class ApiClient {
       !isDashboardSummary(result) ||
       result.weekStart !== weekStart ||
       result.timezone !== timezone
+    )
+      throw new ApiError('response');
+    return result;
+  }
+  async getTrainingCalendar(
+    query: CalendarQuery,
+    signal?: AbortSignal,
+  ): Promise<TrainingCalendar> {
+    if (!validCalendarQuery(query)) throw new ApiError('configuration');
+    const result = await this.request(
+      '/training-calendar/days?' +
+        new URLSearchParams({
+          fromDate: query.fromDate,
+          toDate: query.toDate,
+          timezone: query.timezone,
+        }),
+      isTrainingCalendar,
+      { signal },
+    );
+    if (
+      result.fromDate !== query.fromDate ||
+      result.toDate !== query.toDate ||
+      result.timezone !== query.timezone
     )
       throw new ApiError('response');
     return result;

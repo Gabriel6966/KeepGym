@@ -146,6 +146,12 @@ generados.
   Porcentajes, ratios o balance muscular requieren un dominio explícito futuro,
   no cálculos frontend; el orden visual conserva la semántica backend.
 
+- La UI Training Calendar conserva las filas densas DATE-only del backend; una
+  fecha ausente o duplicada es un error de contrato, nunca actividad cero inventada.
+  Las sesiones sin series siguen siendo actividad y las que cruzan medianoche
+  permanecen en su fecha local de inicio. Los totales mensuales y rachas requieren
+  un dominio futuro explícito, no sumas frontend de las métricas diarias.
+
 ## Seguridad
 
 - Nunca introducir secretos en el repositorio.

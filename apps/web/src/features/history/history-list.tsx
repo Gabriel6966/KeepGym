@@ -11,6 +11,7 @@ import {
   inputClass,
 } from '../workout/workout.ui';
 import { HistoryCards } from './history-content';
+import { CalendarViewLink } from './calendar-content';
 import {
   filterDraft,
   hasHistoryFilters,
@@ -250,6 +251,9 @@ export function HistoryList() {
       <AppHeader active="history" />
       <main id="main-content" className="mx-auto max-w-4xl px-4 py-8 sm:px-6">
         <h1 className="text-3xl font-semibold tracking-tight">History</h1>
+        <div className="mt-4">
+          <CalendarViewLink />
+        </div>
         <p className="mb-6 mt-2 text-sm text-slate-500">
           Completed and cancelled workouts, preserved as historical snapshots.
         </p>
