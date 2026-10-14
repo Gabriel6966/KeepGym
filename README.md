@@ -1276,6 +1276,30 @@ No se suman totales del rango ni se producen rankings, balance scores o consejos
 Loading/error/Retry y AbortSignal/gating reutilizan Progress. Refresh/deep links y
 back/forward preservan rango, métrica y grupo; no hay dependencias o APIs nuevas.
 
+## Training Calendar frontend (GYM-039)
+
+`/history/calendar` es la vista mensual autenticada de History, enlazada desde
+`/history` mediante **Calendar view**, con **List view** para volver al listado.
+El mes DATE-only `YYYY-MM` se conserva en `?month=` para refresh/deep links y
+back/forward. Por defecto usa el mes local del navegador; Previous/Next/Current
+operan por meses de calendario, incluidos meses futuros y febrero bisiesto.
+
+Cada mes hace una única lectura `GET /training-calendar/days` con `fromDate` y
+`toDate` DATE-only inclusivos más la timezone IANA del navegador. La API permite
+hasta 366 días; la UI solicita únicamente el mes. Seleccionar un día no consulta
+ninguna otra API. La respuesta densa y cronológica debe contener cada fecha una
+sola vez: fechas ausentes, duplicadas o fuera de orden producen un error seguro,
+no ceros fabricados. Los placeholders de la cuadrícula Monday-first son solo layout.
+
+El panel diario muestra workouts, sets, reps, volumen canónico kg y duración
+backend (formateada y también en segundos exactos). Solo contribuyen sesiones
+COMPLETED, según la fecha local de `startedAt`: una sesión sin series cuenta como
+workout y aporta duración; bodyweight conserva series/reps con volumen cero.
+Las sesiones que cruzan medianoche permanecen completas en la fecha de inicio.
+No hay cálculos frontend de totales mensuales, promedios, rachas o intensidad.
+El detalle exacto de workouts sigue en History; esta vista no añade consultas
+de detalle ni filtros temporales de History por día.
+
 ## Calidad y build
 
 Ejecuta desde la raíz antes de cerrar cualquier ticket:
