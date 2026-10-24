@@ -1,24 +1,95 @@
 'use client';
 
+import { AuthIcon } from './auth-icon';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { useRef, useState, type FormEvent } from 'react';
+import { useEffect, useReducer, useRef, useState, type FormEvent } from 'react';
 import { apiClient, ApiError } from '../../lib/api-client';
 import { authReturnPath } from './return-path';
-import { buttonClass } from '../dashboard/dashboard.ui';
 import { createSubmissionLock } from '../workout/workout-state';
 import { afterProfileCheck } from './onboarding-routing';
+import { AuthPageShell } from './auth-page-shell';
+import { AuthEntryCard } from './auth-entry-card';
+import { LoginFields } from './login-fields';
+import { authEntryTransition, entryRevealMs } from './auth-transitions';
+import { usePageTurn } from './use-page-turn';
 
 export function LoginForm() {
   const router = useRouter(),
     params = useSearchParams();
+  const destination = authReturnPath(params.get('returnTo'));
+  const registerHref =
+    '/register?' + new URLSearchParams({ returnTo: destination });
+  const turn = usePageTurn(registerHref);
+  const [view, dispatch] = useReducer(authEntryTransition, 'entry');
+  const [animationKey, setAnimationKey] = useState(0);
+  const transitioning = view === 'opening' || view === 'closing';
   const [email, setEmail] = useState(''),
     [password, setPassword] = useState('');
   const [pending, setPending] = useState(false),
     [error, setError] = useState<string | null>(null);
-  const [signedIn, setSignedIn] = useState(false);
+  const [signedIn, setSignedIn] = useState(false),
+    [attempt, setAttempt] = useState(0);
+  const [check, setCheck] = useState<{
+    attempt: number;
+    status: 'guest' | 'error';
+  } | null>(null);
+  const access = check?.attempt === attempt ? check.status : 'checking';
   const lock = useRef(createSubmissionLock());
-  const destination = authReturnPath(params.get('returnTo'));
+  const heading = useRef<HTMLHeadingElement>(null),
+    enter = useRef<HTMLButtonElement>(null),
+    opened = useRef(false);
+
+  // Only an explicit unauthorized session is a guest. A valid session continues
+  // through the existing Profile routing, independently of visual entry state.
+  useEffect(() => {
+    const controller = new AbortController();
+    void apiClient
+      .getProfile(controller.signal)
+      .then((profile) => {
+        if (!controller.signal.aborted)
+          router.replace(afterProfileCheck(profile !== null, destination));
+      })
+      .catch((failure: unknown) => {
+        if (!controller.signal.aborted)
+          setCheck({
+            attempt,
+            status:
+              failure instanceof ApiError && failure.kind === 'unauthorized'
+                ? 'guest'
+                : 'error',
+          });
+      });
+    return () => controller.abort();
+  }, [attempt, destination, router]);
+
+  useEffect(() => {
+    if (view !== 'opening' && view !== 'closing') return;
+    const timer = setTimeout(
+      () => dispatch(view === 'closing' ? 'closed' : 'revealed'),
+      entryRevealMs,
+    );
+    return () => clearTimeout(timer);
+  }, [view]);
+  useEffect(() => {
+    if (!opened.current) return;
+    if (view === 'entry') enter.current?.focus({ preventScroll: true });
+    else if (view === 'login') heading.current?.focus({ preventScroll: true });
+  }, [view]);
+
+  function open() {
+    if (access !== 'guest' || view !== 'entry') return;
+    opened.current = true;
+    dispatch('open');
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches)
+      dispatch('revealed');
+  }
+  function back() {
+    if (pending || signedIn || transitioning || turn.turning) return;
+    dispatch('back');
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches)
+      dispatch('closed');
+  }
   async function checkProfile() {
     const profile = await apiClient.getProfile();
     router.replace(afterProfileCheck(profile !== null, destination));
@@ -36,16 +107,16 @@ export function LoginForm() {
         await checkProfile();
       } catch {
         setError(
-          'You are signed in, but your profile could not be checked. Retry the profile check.',
+          'Has iniciado sesión, pero no se pudo consultar tu perfil. Reintenta la consulta.',
         );
         setPending(false);
         lock.current.release();
       }
-    } catch (error: unknown) {
+    } catch (failure: unknown) {
       setError(
-        error instanceof ApiError && error.kind === 'unauthorized'
-          ? 'Email or password is incorrect.'
-          : 'Unable to sign in right now. Please try again.',
+        failure instanceof ApiError && failure.kind === 'unauthorized'
+          ? 'El correo o la contraseña no son correctos.'
+          : 'No se pudo iniciar sesión. Inténtalo de nuevo.',
       );
       setPending(false);
       lock.current.release();
@@ -57,120 +128,135 @@ export function LoginForm() {
     setError(null);
     try {
       await checkProfile();
-    } catch (error: unknown) {
-      if (error instanceof ApiError && error.kind === 'unauthorized') {
+    } catch (failure: unknown) {
+      if (failure instanceof ApiError && failure.kind === 'unauthorized') {
         setSignedIn(false);
-        setError('Your session expired. Sign in again.');
-      } else setError('Unable to check your profile. Please retry.');
+        setError('Tu sesión ha caducado. Inicia sesión de nuevo.');
+      } else setError('No se pudo consultar tu perfil. Inténtalo de nuevo.');
       setPending(false);
       lock.current.release();
     }
   }
-  const inputClass =
-    'mt-2 block min-h-11 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm outline-offset-2 focus-visible:outline-2 focus-visible:outline-teal-700';
   return (
-    <main
-      id="main-content"
-      className="flex min-h-screen items-center justify-center bg-slate-50 px-4 py-12"
-    >
-      <div className="w-full max-w-md rounded-xl border border-slate-200 bg-white p-7 shadow-sm sm:p-8">
-        <Link
-          href="/"
-          className="rounded text-sm font-semibold text-slate-600 focus-visible:outline-2 focus-visible:outline-teal-700"
-        >
-          Gym App
-        </Link>
-        <h1 className="mt-6 text-2xl font-semibold tracking-tight">Sign in</h1>
-        <p className="mt-2 text-sm leading-6 text-slate-500">
-          Access your workouts and dashboard with your existing account.
-        </p>
-        {!signedIn && (
-          <form
-            className="mt-7 space-y-5"
-            onSubmit={submit}
-            aria-describedby={error ? 'login-error' : undefined}
-          >
-            <div>
-              <label htmlFor="email" className="text-sm font-medium">
-                Email
-              </label>
-              <input
-                id="email"
-                name="email"
-                type="email"
-                autoComplete="email"
-                required
-                value={email}
-                onChange={(event) => setEmail(event.target.value)}
-                className={inputClass}
-                disabled={pending}
-              />
-            </div>
-            <div>
-              <label htmlFor="password" className="text-sm font-medium">
-                Password
-              </label>
-              <input
-                id="password"
-                name="password"
-                type="password"
-                autoComplete="current-password"
-                required
-                value={password}
-                onChange={(event) => setPassword(event.target.value)}
-                className={inputClass}
-                disabled={pending}
-              />
-            </div>
-            {error && (
-              <p
-                id="login-error"
-                role="alert"
-                className="rounded-lg bg-slate-100 px-4 py-3 text-sm text-slate-700"
-              >
-                {error}
+    <AuthPageShell
+      mode={view === 'entry' ? 'entry' : 'form'}
+      view={view}
+      animationKey={animationKey}
+      onReplay={() => {
+        if (view === 'entry') setAnimationKey((value) => value + 1);
+      }}
+      replayDisabled={view !== 'entry' || pending || signedIn || turn.turning}
+      turning={turn.turning}
+      onTurnEnd={turn.finish}
+      onRevealEnd={() => dispatch(view === 'closing' ? 'closed' : 'revealed')}
+      feedback={
+        view === 'entry' && access !== 'guest' ? (
+          access === 'error' ? (
+            <>
+              <p role="alert" className="auth-error">
+                No se pudo comprobar tu sesión. Reintenta antes de continuar.
               </p>
-            )}
-            <button
-              type="submit"
-              disabled={pending}
-              className={
-                buttonClass +
-                ' w-full border-slate-900 bg-slate-900 text-white hover:bg-slate-800'
-              }
-            >
-              {pending ? 'Signing in...' : 'Sign in'}
-            </button>
-          </form>
-        )}
-        {signedIn && (
-          <div className="mt-7 space-y-4">
-            <p role="status">
-              {pending
-                ? 'Checking your profile...'
-                : 'Signed in. Profile check pending.'}
+              <button
+                type="button"
+                className="auth-button"
+                onClick={() => setAttempt((value) => value + 1)}
+              >
+                Reintentar comprobación de sesión
+              </button>
+            </>
+          ) : (
+            <p role="status" className="auth-status">
+              Comprobando sesión…
             </p>
-            {error && <p role="alert">{error}</p>}
-            <button
-              type="button"
-              disabled={pending}
-              className={buttonClass}
-              onClick={() => void retryProfile()}
-            >
-              Retry profile check
-            </button>
-          </div>
-        )}
-        <p className="mt-6 text-sm text-slate-600">
-          New here?{' '}
-          <Link
-            className="rounded underline focus-visible:outline-2 focus-visible:outline-teal-700"
-            href={'/register?' + new URLSearchParams({ returnTo: destination })}
+          )
+        ) : undefined
+      }
+    >
+      {view !== 'login' && (
+        <AuthEntryCard
+          key={animationKey}
+          aboutHref={
+            '/sobrenosotros?' + new URLSearchParams({ returnTo: destination })
+          }
+          onEnter={open}
+          disabled={access !== 'guest'}
+          leaving={transitioning}
+          enterRef={enter}
+        />
+      )}
+      {view !== 'entry' && (
+        <div
+          className="auth-form-view auth-form-view--login"
+          inert={transitioning || undefined}
+          aria-hidden={transitioning || undefined}
+        >
+          <button
+            type="button"
+            className="auth-back"
+            disabled={pending || signedIn || turn.turning || transitioning}
+            onClick={back}
           >
-            Create account
-          </Link>
-        </p>
-      </div>
-    </main>
+            <AuthIcon name="arrow-left" />
+            Volver
+          </button>
+          <p className="auth-eyebrow">TU ESPACIO DE ENTRENAMIENTO</p>
+          <h1 ref={heading} tabIndex={-1} className="auth-form-heading">
+            Iniciar sesión
+          </h1>
+          <p className="auth-intro">Continúa donde lo dejaste.</p>
+          {!signedIn && (
+            <LoginFields
+              email={email}
+              password={password}
+              pending={pending}
+              disabled={turn.turning || transitioning}
+              error={error}
+              onEmail={setEmail}
+              onPassword={setPassword}
+              onSubmit={submit}
+            />
+          )}
+          {signedIn && (
+            <div className="auth-form">
+              <p role="status" className="auth-status">
+                {pending
+                  ? 'Consultando tu perfil…'
+                  : 'Sesión iniciada. Consulta del perfil pendiente.'}
+              </p>
+              {error && (
+                <p role="alert" className="auth-error">
+                  {error}
+                </p>
+              )}
+              <button
+                type="button"
+                disabled={pending}
+                className="auth-button"
+                onClick={() => void retryProfile()}
+              >
+                Reintentar consulta del perfil
+              </button>
+            </div>
+          )}
+          {!signedIn && (
+            <p className="auth-footer">
+              ¿No tienes cuenta?{' '}
+              <Link
+                href={registerHref}
+                prefetch={false}
+                onClick={(event) => {
+                  if (pending) event.preventDefault();
+                  else turn.begin(event);
+                }}
+                aria-disabled={pending || turn.turning}
+                className="auth-link"
+              >
+                Crear cuenta
+              </Link>
+            </p>
+          )}
+        </div>
+      )}
+    </AuthPageShell>
   );
 }

@@ -75,8 +75,8 @@ void test('register form contains email/password/confirm UX only, no arbitrary c
   assert.match(html, /name="email"/);
   assert.match(html, /name="password"/);
   assert.match(html, /name="confirmPassword"/);
-  assert.match(html, /15–128 characters/);
-  assert.match(html, /No required character combinations/);
+  assert.match(html, /15 y 128 caracteres/);
+  assert.match(html, /Sin combinaciones de caracteres obligatorias/);
   assert.match(html, /autoComplete="new-password"/i);
   assert.doesNotMatch(
     html,

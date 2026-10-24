@@ -1,21 +1,25 @@
 'use client';
 
+import { AuthIcon } from './auth-icon';
 import Link from 'next/link';
 import { useEffect, useRef, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { apiClient, ApiError } from '../../lib/api-client';
-import { buttonClass } from '../dashboard/dashboard.ui';
 import { createSubmissionLock } from '../workout/workout-state';
 import { authReturnPath } from './return-path';
 import { afterProfileCheck } from './onboarding-routing';
 import { ambiguousProfileWrite } from '../profile/profile-state';
 import { RegisterForm } from './register-form';
+import { AuthPageShell } from './auth-page-shell';
+import { usePageTurn } from './use-page-turn';
 
 export function RegisterClient() {
   const router = useRouter(),
     params = useSearchParams(),
     lock = useRef(createSubmissionLock());
   const destination = authReturnPath(params.get('returnTo'));
+  const loginHref = '/login?' + new URLSearchParams({ returnTo: destination });
+  const turn = usePageTurn(loginHref);
   const [retry, setRetry] = useState(0),
     [ready, setReady] = useState(false),
     [pending, setPending] = useState(false),
@@ -37,7 +41,7 @@ export function RegisterClient() {
         } else {
           setReady(false);
           setFailure(
-            'Unable to check your session. Retry before creating an account.',
+            'No se pudo comprobar tu sesión. Reintenta antes de crear una cuenta.',
           );
         }
       });
@@ -53,8 +57,8 @@ export function RegisterClient() {
     } catch (error: unknown) {
       setFailure(
         error instanceof ApiError && error.kind === 'unauthorized'
-          ? 'No active session was found. Sign in to check whether the account was created.'
-          : 'Unable to check your profile. Please retry.',
+          ? 'No se encontró una sesión activa. Inicia sesión para comprobar si se creó la cuenta.'
+          : 'No se pudo consultar tu perfil. Inténtalo de nuevo.',
       );
       setPending(false);
       lock.current.release();
@@ -72,7 +76,7 @@ export function RegisterClient() {
         router.replace(afterProfileCheck(profile !== null, destination));
       } catch {
         setFailure(
-          'Account created. Retry the profile check to continue; do not register again.',
+          'Cuenta creada. Reintenta la consulta del perfil para continuar; no vuelvas a registrarte.',
         );
         setPending(false);
         lock.current.release();
@@ -82,39 +86,46 @@ export function RegisterClient() {
       setReconcile(ambiguous);
       setFailure(
         ambiguous
-          ? 'The account request may have been applied. Check the session or sign in before trying to register again.'
+          ? 'La cuenta podría haberse creado. Comprueba la sesión o inicia sesión antes de volver a registrarte.'
           : error instanceof ApiError && error.status === 409
-            ? 'Unable to create this account. If you already registered, sign in.'
-            : 'Unable to create the account. Check your details and try again.',
+            ? 'No se pudo crear esta cuenta. Si ya te registraste, inicia sesión.'
+            : 'No se pudo crear la cuenta. Revisa los datos e inténtalo de nuevo.',
       );
       setPending(false);
       lock.current.release();
     }
   }
   return (
-    <main
-      id="main-content"
-      className="flex min-h-screen items-center justify-center bg-slate-50 px-4 py-12"
-    >
-      <div className="w-full max-w-md rounded-xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
-        <Link href="/" className={buttonClass}>
-          Gym App
+    <AuthPageShell turning={turn.turning} onTurnEnd={turn.finish}>
+      <div className="auth-form-view">
+        <Link
+          href={loginHref}
+          prefetch={false}
+          className="auth-back"
+          onClick={(event) => {
+            if (pending) event.preventDefault();
+            else turn.begin(event);
+          }}
+          aria-disabled={pending || turn.turning}
+        >
+          <AuthIcon name="arrow-left" />
+          Volver
         </Link>
-        <h1 className="mt-6 text-2xl font-semibold tracking-tight">
-          Create account
-        </h1>
-        <p className="mt-2 text-sm text-slate-500">
-          Create your account, then set up your profile.
-        </p>
+        <p className="auth-eyebrow">TU ESPACIO DE ENTRENAMIENTO</p>
+        <h1 className="auth-form-heading">Crear cuenta</h1>
+        <p className="auth-intro">Tu próximo entrenamiento empieza aquí.</p>
         {ready && !reconcile ? (
-          <RegisterForm disabled={pending} onRegister={register} />
+          <RegisterForm
+            disabled={pending || turn.turning}
+            onRegister={register}
+          />
         ) : !failure && !reconcile ? (
-          <p role="status" className="mt-7">
-            Checking session...
+          <p role="status" className="auth-status">
+            Comprobando sesión…
           </p>
         ) : null}
         {failure && (
-          <p role="alert" className="mt-5 text-sm text-slate-700">
+          <p role="alert" className="auth-error">
             {failure}
           </p>
         )}
@@ -122,33 +133,39 @@ export function RegisterClient() {
           <button
             type="button"
             disabled={pending}
-            className={buttonClass + ' mt-4'}
+            className="auth-button"
             onClick={() => void checkSession()}
           >
-            {pending ? 'Checking profile...' : 'Check session / profile'}
+            {pending ? 'Consultando perfil…' : 'Comprobar sesión y perfil'}
           </button>
         ) : !ready && failure ? (
           <button
             type="button"
-            className={buttonClass + ' mt-4'}
+            className="auth-button"
             onClick={() => {
               setFailure(null);
               setRetry((value) => value + 1);
             }}
           >
-            Retry session check
+            Reintentar comprobación de sesión
           </button>
         ) : null}
-        <p className="mt-6 text-sm text-slate-600">
-          Already have an account?{' '}
+        <p className="auth-footer">
+          ¿Ya tienes una cuenta?{' '}
           <Link
-            className="rounded underline focus-visible:outline-2 focus-visible:outline-teal-700"
-            href={'/login?' + new URLSearchParams({ returnTo: destination })}
+            className="auth-link"
+            href={loginHref}
+            prefetch={false}
+            aria-disabled={pending || turn.turning}
+            onClick={(event) => {
+              if (pending) event.preventDefault();
+              else turn.begin(event);
+            }}
           >
-            Sign in
+            Iniciar sesión
           </Link>
         </p>
       </div>
-    </main>
+    </AuthPageShell>
   );
 }
