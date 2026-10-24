@@ -1123,6 +1123,12 @@ edición y eliminación se verifica con API/Web reales sin nuevas dependencias.
 
 ## Profile y onboarding frontend (GYM-034)
 
+La entrada Auth (GYM-040 Phase 1) usa una portada oscura en `/login`, con recursos
+locales, una pesa suspendida de una cuerda y una transición al formulario real.
+«Sobre nosotros» abre `/sobrenosotros`; `/register` conserva su acceso directo.
+Las animaciones respetan movimiento reducido y no consultan APIs. La presentación
+se limita a estas rutas y conserva los contratos Auth/Profile descritos aquí.
+
 `/register` crea una cuenta real con `POST /auth/register` (email y password de
 15–128 caracteres, sin reglas de complejidad adicionales). Confirm password es
 solo UX y no se envía. Reutiliza access token en memoria, refresh cookie HttpOnly

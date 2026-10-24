@@ -1,8 +1,7 @@
 'use client';
 
+import { AuthIcon } from './auth-icon';
 import { useRef, useState, type FormEvent } from 'react';
-import { buttonClass } from '../dashboard/dashboard.ui';
-import { inputClass } from '../workout/workout.ui';
 import { createSubmissionLock } from '../workout/workout-state';
 import {
   validateRegistration,
@@ -51,19 +50,19 @@ export function RegisterForm({
   }
   return (
     <form
-      aria-label="Create account"
+      aria-label="Crear cuenta"
       noValidate
       onSubmit={submit}
-      className="mt-7 space-y-5"
+      className="auth-form"
     >
       {(['email', 'password', 'confirmPassword'] as const).map((field) => (
-        <div key={field}>
-          <label htmlFor={'register-' + field} className="text-sm font-medium">
+        <div key={field} className="auth-field">
+          <label htmlFor={'register-' + field}>
             {field === 'email'
-              ? 'Email'
+              ? 'Correo electrónico'
               : field === 'password'
-                ? 'Password'
-                : 'Confirm password'}
+                ? 'Contraseña'
+                : 'Confirmar contraseña'}
           </label>
           <input
             id={'register-' + field}
@@ -84,37 +83,37 @@ export function RegisterForm({
               (field === 'password' ? 'register-password-hint ' : '') +
               (errors[field] ? 'register-' + field + '-error' : '')
             }
-            className={inputClass}
+            className="auth-input"
           />
           {field === 'password' && (
-            <p
-              id="register-password-hint"
-              className="mt-1 text-xs text-slate-500"
-            >
-              15–128 characters. No required character combinations.
+            <p id="register-password-hint" className="auth-hint">
+              Entre 15 y 128 caracteres. Sin combinaciones de caracteres
+              obligatorias.
             </p>
           )}
           {errors[field] && (
-            <p
-              id={'register-' + field + '-error'}
-              className="mt-1 text-sm text-red-800"
-            >
-              {errors[field]}
+            <p id={'register-' + field + '-error'} className="auth-field-error">
+              {field === 'email'
+                ? 'Introduce un correo válido, de hasta 320 caracteres.'
+                : field === 'password'
+                  ? 'Utiliza una contraseña de entre 15 y 128 caracteres.'
+                  : 'Las contraseñas deben coincidir.'}
             </p>
           )}
         </div>
       ))}
       {Object.keys(errors).length > 0 && (
-        <p role="alert" className="text-sm text-red-800">
-          Check the highlighted fields.
+        <p role="alert" className="auth-error">
+          Revisa los campos señalados.
         </p>
       )}
       <button
         type="submit"
         disabled={disabled || pending}
-        className={buttonClass + ' w-full'}
+        className="auth-button auth-button--primary"
       >
-        {pending ? 'Creating account...' : 'Create account'}
+        {pending ? 'Creando cuenta…' : 'Crear cuenta'}
+        <AuthIcon name="arrow-right" />
       </button>
     </form>
   );

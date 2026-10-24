@@ -1,20 +1,13 @@
 import type { Metadata } from 'next';
 import { Suspense } from 'react';
 import { LoginForm } from '@/features/auth/login-form';
+import { AuthLoading } from '@/features/auth/auth-page-shell';
+import '@/features/auth/auth-entry.css';
 
-export const metadata: Metadata = { title: 'Sign in | Gym App' };
+export const metadata: Metadata = { title: 'Accede a KeepGym' };
 export default function LoginPage() {
   return (
-    <Suspense
-      fallback={
-        <main
-          id="main-content"
-          className="flex min-h-screen items-center justify-center"
-        >
-          <p role="status">Loading sign in...</p>
-        </main>
-      }
-    >
+    <Suspense fallback={<AuthLoading />}>
       <LoginForm />
     </Suspense>
   );
