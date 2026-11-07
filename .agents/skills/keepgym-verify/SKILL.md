@@ -5,6 +5,19 @@ description: Verifica técnicamente una implementación de KeepGym cuando se sol
 
 # KeepGym Verify
 
+## Contexto por defecto
+
+Leer únicamente AGENTS.md, este SKILL.md, [checks.md](references/checks.md), los
+manifests package/workspace relevantes y el diff/status necesarios.
+No cargar automáticamente otras Skills, contratos, harness ni README completo,
+tampoco en FINAL. Ampliar solo ante una razón concreta derivada del alcance y
+explicar el motivo antes de abrir la fuente adicional.
+
+Una verificación normal no es una auditoría del workspace. No activar
+`keepgym-workspace-gardener` para auditar este Skill durante una verificación normal;
+la auto-validación de routing/Skills requiere petición explícita o un encargo
+específico de infraestructura agentic.
+
 ## Procedimiento
 
 1. Delimita el alcance solicitado y revisa el estado Git, incluidos cambios staged

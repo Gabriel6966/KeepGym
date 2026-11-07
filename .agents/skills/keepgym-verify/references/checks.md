@@ -8,6 +8,23 @@
   razón explícita de alcance o una restricción del usuario; no presentes checks
   omitidos como ejecutados.
 
+## Ampliación de contexto
+
+Los enlaces son rutas condicionales, no una lista de lectura automática. Ni QUICK
+ni FINAL implican cargar `keepgym-ui-phase`, `keepgym-integration-smoke`,
+`keepgym-workspace-gardener`, `docs/contracts/*`, `harness/STATE.md`,
+`harness/LEARNINGS.md`, `harness/phases/*` o README completo.
+
+| Razón concreta del alcance                                          | Fuente o continuación limitada                                                                     |
+| ------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------- |
+| Estado de aprobación UI necesario para el dictamen                  | Evidencia puntual en STATE o referencia UI pertinente; un checklist no demuestra aprobación humana |
+| Persistencia/snapshots requieren verificación real                  | Remitir a integration-smoke; no cargar ni ejecutar todo su workflow automáticamente                |
+| Regla de arquitectura/dominio bajo revisión                         | Solo el contrato pertinente y su Evidence necesaria                                                |
+| Auditoría explícita o encargo específico de infraestructura agentic | Gardener limitado al encargo, sin convertir una verificación normal en auto-auditoría              |
+
+Sin una razón concreta, conservar el contexto por defecto del Skill. Pedir
+`keepgym-verify FINAL` no solicita auditar el agentic workspace.
+
 ## Helpers deterministas
 
 Ejecuta primero [preflight.mjs](../scripts/preflight.mjs): lee engines del repositorio,
