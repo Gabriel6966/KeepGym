@@ -8,6 +8,40 @@
   razón explícita de alcance o una restricción del usuario; no presentes checks
   omitidos como ejecutados.
 
+## Helpers deterministas
+
+Ejecuta primero [preflight.mjs](../scripts/preflight.mjs): lee engines del repositorio,
+compara Node/pnpm reales sin dependencias runtime y muestra rama/status Git.
+Soporta los formatos actuales `X.Y.Z` y `>=X.Y.Z <MAJOR`; otros formatos devuelven FAIL.
+Devuelve JSON con PASS (exit 0), FAIL (1) o BLOCKED (2). Si faltan pnpm o Git,
+no instala ni repara nada. Localiza la raíz desde el script, también fuera del cwd
+raíz y en worktrees. No busca ni activa runtimes alternativos.
+Deshabilita descargas/auto-pinning de Corepack y el cambio automático de versión de
+pnpm únicamente en sus procesos hijos, sin modificar configuración persistente.
+
+Con preflight válido, usa [run-checks.mjs](../scripts/run-checks.mjs) con una lista
+explícita, por ejemplo `node .agents/skills/keepgym-verify/scripts/run-checks.mjs typecheck diff-check`.
+Usa el entorno compatible autorizado también para los procesos pnpm hijos; los
+helpers no cambian PATH ni configuración.
+
+| Check      | Comando existente                      |
+| ---------- | -------------------------------------- |
+| lint       | `pnpm lint`                            |
+| typecheck  | `pnpm typecheck`                       |
+| test       | `pnpm test --force`                    |
+| build      | `pnpm build`                           |
+| diff-check | `git diff --check`                     |
+| postgres   | `pnpm --filter @gym/api test:postgres` |
+
+El runner conserva el orden recibido, reenvía stdout/stderr y continúa tras fallos
+por defecto. `--fail-fast` deja los siguientes como NOT RUN; una interrupción por
+señal también detiene la secuencia. Resume estados y exit codes y devuelve el primer
+código no cero (o fallo de arranque/señal). Sin checks, con nombres desconocidos o
+duplicados, devuelve exit 2 sin ejecutar nada. `--help` muestra la sintaxis.
+
+Estos helpers no seleccionan checks, certifican arquitectura ni conceden permiso de
+commit. `postgres` solo llama a la suite existente; no gestiona Docker/PostgreSQL.
+
 ## Matriz por alcance
 
 | Cambio o verificación                              | Checks relevantes                                                                     | PostgreSQL / runtime                                                  |

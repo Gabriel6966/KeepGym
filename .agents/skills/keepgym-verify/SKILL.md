@@ -9,25 +9,25 @@ description: Verifica técnicamente una implementación de KeepGym cuando se sol
 
 1. Delimita el alcance solicitado y revisa el estado Git, incluidos cambios staged
    y archivos nuevos. Separa los cambios previos de los de esta tarea sin revertirlos.
-2. Lee las instrucciones aplicables, `package.json` (`engines`, `packageManager` y
-   scripts) y comprueba las versiones reales de Node y pnpm. Si falta un runtime
-   compatible autorizado, marca BLOCKED; no debilites engines ni instales runtimes
-   automáticamente.
-3. Declara modo y checks necesarios con [checks.md](references/checks.md):
+2. Lee las instrucciones aplicables y ejecuta primero
+   `node .agents/skills/keepgym-verify/scripts/preflight.mjs` desde el entorno actual.
+   Si devuelve BLOCKED o FAIL, informa la causa; no debilites engines ni instales
+   runtimes automáticamente. Los bloqueos de runtime requieren resolución autorizada
+   y otro preflight antes de ejecutar los checks afectados.
+3. Declara modo y checks necesarios con [checks.md](references/checks.md) y pasa una
+   lista explícita a [run-checks.mjs](scripts/run-checks.mjs):
    - **QUICK:** revisión focalizada del diff y comprobaciones relevantes.
    - **FINAL:** cierre técnico/pre-commit; normalmente ejecuta desde la raíz:
 
      ```sh
-     pnpm lint
-     pnpm typecheck
-     pnpm test --force
-     pnpm build
-     git diff --check
+     node .agents/skills/keepgym-verify/scripts/run-checks.mjs lint typecheck test build diff-check
      git status --short
      git diff --stat
      ```
 
-4. Respeta restricciones explícitas sobre ejecución. Reutiliza evidencia solo si
+4. Interpreta los resultados; los helpers no deciden scope ni SAFE TO COMMIT.
+   Conserva la revisión manual de diff, arquitectura y archivos accidentales.
+   Respeta restricciones explícitas sobre ejecución. Reutiliza evidencia solo si
    sigue vigente para el mismo código y entorno; explica omisiones y resultados
    reutilizados. Una revisión QUICK no acredita una batería FINAL.
 5. Si hace falta verdad de dominio, abre solo el documento relevante de
