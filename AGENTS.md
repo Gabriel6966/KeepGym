@@ -1,181 +1,94 @@
-# Reglas del proyecto
+# KeepGym — reglas del workspace
 
-## Arquitectura
+## Repositorio y alcance
 
-- `apps/web`: frontend Next.js con App Router, TypeScript y Tailwind CSS.
-- `apps/api`: backend NestJS con TypeScript.
-- `packages/types`: tipos compartidos.
-- `packages/config`: configuración compartida.
-- `docs`: documentación técnica.
+- Monorepo pnpm workspaces + Turborepo, con un repositorio Git y un
+  `pnpm-lock.yaml` raíz. No versionar `node_modules` ni artefactos generados.
+- `apps/web`: Next.js App Router, React, TypeScript y Tailwind;
+  `apps/api`: NestJS con TypeScript.
+- `packages/types`: tipos compartidos; `packages/config`: configuración compartida;
+  `docs`: documentación técnica.
+- Preservar trabajo existente; hacer el menor cambio justificado dentro del alcance.
+  No añadir funcionalidades ni refactors ajenos. Justificar dependencias nuevas.
+- TypeScript `strict`; tipos concretos y entradas externas desde `unknown` validado.
+  No usar `any`, `ts-ignore` ni `eslint-disable` para ocultar problemas.
+- Cambios puramente visuales no reinician estado independiente ni añaden requests.
 
-El monorepo utiliza pnpm workspaces y Turborepo. Hay un único `pnpm-lock.yaml`
-en la raíz y un único repositorio Git. No versionar `node_modules` ni artefactos
-generados.
+## Arquitectura y dominio
+
+- Controllers pequeños; negocio en services; persistencia en repositories.
+  Flujo: Controller → Service → Repository → PrismaService → PostgreSQL.
+  Prohibidos Controller → Prisma y Service → Prisma.
+- Los compositores de dominios, incluido Auth, usan servicios públicos sin SQL
+  ni acceso directo a repositories/Prisma.
+- PostgreSQL y Prisma ORM 7; schema, cliente y migraciones pertenecen a `apps/api`.
+  El frontend no accede directamente a Prisma.
+- El backend define la semántica de dominio. Los datos mutables actuales no
+  reescriben la historia: la ejecución usa snapshots y sus estados terminales
+  permanecen inmutables.
+- Analytics se derivan en backend; el frontend presenta datos factuales, sin
+  reconstruir analytics ni inferir juicios cualitativos.
+  No persistir cálculos sin justificación arquitectónica.
+- Preservar null frente a cero según contrato. Las escalas visuales son solo
+  presentación, nunca datos de dominio.
+
+## Seguridad y auth
+
+- Ownership desde el principal autenticado, nunca desde un `userId` del cliente.
+- No versionar ni exponer en respuestas, logs o errores secretos, credenciales,
+  tokens ni hashes sensibles. Passwords nunca en claro; secretos desde el entorno.
+  Documentar variables sin secretos en los `.env.example` aplicables.
+- Access token frontend solo en memoria; refresh gestionado por backend mediante
+  cookie HttpOnly. Aplicar el contrato Auth/Profile para los detalles.
 
 ## Base de datos
 
-- PostgreSQL es la base de datos; Prisma ORM 7 es el ORM.
-- Prisma pertenece a `apps/api`, incluido su schema, cliente y migraciones.
-- Versionar las migraciones en Git. Nunca modificar una migración ya aplicada;
-  crear una nueva.
-- Nunca usar `db push` como sustituto de las migraciones normales.
-- El catálogo global Exercise se gestiona mediante seed versionado, no desde
-  endpoints de usuario. Los slugs son estables y las referencias usan su UUID.
-- Retirar ejercicios mediante `isActive`; no borrar físicamente ejercicios que
-  puedan estar referenciados por históricos.
+- Migraciones aplicadas inmutables; cambios nuevos mediante migraciones versionadas.
+  `prisma db push` no sustituye migraciones normales.
+- Sin autorización explícita: no `prisma migrate reset`, resets destructivos,
+  borrado de datos/volúmenes, `docker compose down -v`, recuperación destructiva de
+  Docker ni cambios de `.env` para sortear un fallo.
 
-## Implementación
+## Git y verificación
 
-- Utilizar TypeScript con `strict: true` en todas las aplicaciones y paquetes.
-- Evitar `any`; utilizar tipos concretos o `unknown` con validación.
-- Mantener los cambios pequeños y enfocados.
-- No modificar código no relacionado con el ticket actual.
-- No implementar funcionalidades fuera del alcance solicitado.
-- No introducir dependencias sin una razón clara.
-- Validar las entradas externas antes de utilizarlas.
-- Mantener los controladores NestJS pequeños.
-- La lógica de negocio debe vivir en services.
-- Los services utilizan repositories para la persistencia de dominio.
-  Los controladores no acceden directamente a Prisma.
-- AuthService utiliza UsersService y SessionsService; no accede directamente a repositories ni Prisma.
-- Los recursos del usuario autenticado obtienen su identidad del principal,
-  nunca de un userId enviado por el cliente.
-- Profile contiene datos relativamente estables. El peso y otras medidas
-  corporales pertenecen al histórico BodyMeasurement, no a Profile. Persistir
-  mediciones en kg/cm/% usando Decimal; sus analytics se derivan exclusivamente
-  de BodyMeasurement, sin persistir cálculos. Cada métrica parcial tiene su propia
-  secuencia temporal de observaciones no-null dentro del rango consultado.
-  Cada observación conserva al menos una métrica, también tras PATCH concurrentes.
-- WorkoutTemplate representa planificación, nunca rendimiento realizado. Se
-  archiva en lugar de borrarse físicamente mediante HTTP.
-- Las entradas de una plantilla mantienen posiciones contiguas desde 1;
-  añadir, eliminar y reordenar deben preservar el orden de forma atómica.
-- WorkoutSession es histórico: persiste un snapshot atómico y no reconstruye
-  sus datos leyendo WorkoutTemplate o Exercise mutables.
-- Las sesiones de entrenamiento solo pasan de IN_PROGRESS a COMPLETED o
-  CANCELLED mediante una transición condicional atómica; no se reabren.
-- WorkoutSessionExercise conserva planificación. SetEntry es la fuente histórica
-  del rendimiento realizado; nunca mezclar ambos datos. La carga se persiste en
-  kilogramos usando Decimal, no Float.
-- Las series mantienen posiciones contiguas desde 1 mediante operaciones atómicas
-  coordinadas con complete/cancel. Una sesión terminada no admite cambios desde HTTP.
-- Analytics deriva métricas de snapshots y SetEntry; no persistir métricas
-  calculables sin una razón arquitectónica. Solo COMPLETED alimenta las métricas
-  principales. El volumen usa carga externa en kg × reps; el e1RM inicial usa
-  Epley únicamente con carga positiva y 1–20 reps, redondeando al presentar.
-- Personal Records se deriva de SetEntry de sesiones COMPLETED, sin persistir
-  PRs prematuramente. El record holder es la primera consecución del valor
-  máximo actual según completedAt y setId, no la repetición más reciente.
-  Un feed de holders actuales no representa eventos históricos de PR; ordena por
-  primera consecución y usa la metadata snapshot del set ganador, no el catálogo actual.
-- Los agregados temporales de entrenamiento definen explícitamente su timezone
-  y usan startedAt de sesiones COMPLETED; los agregados semanales no se persisten.
-  Las tendencias por ejercicio requieren SetEntry real; una occurrence sin series
-  no es rendimiento. Reutilizar la fórmula e1RM centralizada en analytics.math.
-  Los agregados musculares atribuyen cada SetEntry únicamente al primaryMuscle
-  del snapshot histórico, sin duplicarlo entre secondaryMuscles.
-  Las comparaciones usan periodos de calendario en la timezone explícita, con
-  intervalos [inicio, fin) y límites locales independientes de DST. El porcentaje
-  con base cero es null; los cambios se describen sin interpretación cualitativa.
-- La consistencia deriva de WorkoutSession COMPLETED, incluso sin SetEntry.
-  Las rachas operan sobre semanas locales de calendario dentro del rango, no
-  diferencias de horas UTC, y no implican calidad del entrenamiento.
-- La duración deriva de startedAt/endedAt históricos: resta instantes reales,
-  mientras la agrupación usa el calendario local del inicio. No inferir tiempo
-  activo ni descansos, no repartir sesiones entre buckets ni persistir duración
-  derivada. Rechazar invariantes temporales corruptas sin inventar u omitir datos.
-- El calendario de actividad usa rangos DATE-only locales con timezone explícita
-  y devuelve también fechas vacías con ceros. Cada sesión pertenece íntegramente
-  a la fecha local de startedAt; sus métricas no deben multiplicarse por joins
-  con SetEntry. Los totales diarios son derivados, no persistidos.
-- Dashboard compone los servicios públicos de los dominios, sin duplicar SQL
-  ni acceder directamente a sus repositories. Sus resúmenes son factuales;
-  los fallos de subservicios no se convierten en ceros o resultados parciales.
-  La actividad reciente se compone desde HistoryService, con orden histórico
-  determinista y sin excluir sesiones COMPLETED que no tengan series.
-  Los bloques de récords actuales se componen desde RecordsService y no dependen
-  de la semana seleccionada.
-  Los exercise highlights se componen desde AnalyticsService: representan latest
-  y previous performances reales, seleccionadas por recencia, no recomendaciones
-  ni Personal Records. Una occurrence sin SetEntry no es performance; sus métricas
-  de fuerza son por occurrence, no máximos all-time.
-  El snapshot muscular del Dashboard compone TrainingTrendsService para la semana
-  local seleccionada; preserva grupos activos y orden determinista, sin rankings.
-  El progreso corporal se compone desde el overview all-time de BodyAnalyticsService,
-  sin reconstruir cambios ni acceder a BodyMeasurement desde Dashboard; conserva
-  el contrato por métrica y las unidades canónicas, independiente de la semana.
-- El Dashboard frontend consume el endpoint compuesto, no hace fan-out a las
-  APIs de dominio ni recalcula analytics. Navega semanas DATE-only por calendario,
-  no por 168 horas; presenta unidades canónicas sin conversión implícita.
-  El access token frontend permanece en memoria y la refresh cookie sigue siendo
-  exclusivamente responsabilidad del backend; no persistir tokens en localStorage.
-  Las escalas visuales son solo presentación: no sustituyen cifras ni cambios
-  derivados, no mezclan unidades incompatibles y preservan el orden del backend.
-  Las observaciones ausentes no se convierten en barras o valores cero.
-- El logging frontend renderiza los snapshots de WorkoutSession, nunca reconstruye
-  ejercicios desde el catálogo mutable. Las sesiones terminales son read-only;
-  las posiciones de SetEntry provienen del backend, también después de borrar.
-  El logging recoge valores canónicos sin calcular analytics ni detectar PRs.
-- La gestión frontend de templates distingue WorkoutTemplateExercise.id de
-  Exercise.id: update/remove/reorder usan la identidad de la entrada planificada.
-  Las escrituras ambiguas no se repiten automáticamente; se relee el backend
-  antes de permitir nuevos cambios.
-- El frontend History conserva filtros, paginación y orden del backend; su detalle
-  es siempre read-only y usa snapshots históricos sin consultas al catálogo o
-  template actuales. Los campos opcionales null siguen siendo ausencia, no cero.
-- La UI Body mantiene observaciones parciales, no un snapshot corporal completo.
-  PATCH distingue campos omitidos de null explícito y conserva measuredAt si no
-  cambia. Los horarios locales se serializan con timezone explícita; los huecos
-  DST no se desplazan silenciosamente. Los cambios corporales siguen en backend.
-- El onboarding frontend compone Auth y Profile como operaciones separadas.
-  birthDate conserva su DATE-only original, sin convertirse por timestamps UTC;
-  UnitSystem es una preferencia visual y no cambia el almacenamiento canónico.
-  Solo la ausencia explícita de Profile permite iniciar onboarding, no errores
-  de red o servidor; las escrituras ambiguas se reconcilian antes de repetirlas.
-- Exercise Progress usa sourceExerciseId como identidad, nunca IDs de occurrences,
-  entradas de template o sets. Las tendencias por ejercicio permanecen sparse y
-  derivadas en backend; el frontend no densifica, recalcula e1RM ni elige holders.
-  Analytics summary/occurrences y Records all-time se etiquetan separadamente del
-  rango local de Weekly Trends; la metadata histórica no se reconstruye del catálogo.
-- Training Progress compone Trends, Consistency y Duration con un rango semanal
-  compartido, adaptado al contrato temporal real de cada API. Consistency no se
-  infiere de buckets sparse de Trends; totales y averages de Duration siguen en
-  backend. Cambiar métricas visuales no consulta datos ni reinicia el selector.
-- Muscle Group Progress representa buckets ya atribuidos por backend; el filtro
-  local no incorpora secondaryMuscles ni sintetiza pares semana/grupo ausentes.
-  Porcentajes, ratios o balance muscular requieren un dominio explícito futuro,
-  no cálculos frontend; el orden visual conserva la semántica backend.
+- Git de lectura permitido para inspección. Escrituras/publicación requieren
+  autorización explícita: staging/`git add`, commit, push, merge, crear/actualizar PR
+  y reset/clean destructivos.
+- Antes de cerrar trabajo, realizar la verificación requerida por su alcance;
+  procedimiento y batería FINAL en `$keepgym-verify`. No cerrar con checks necesarios
+  fallidos o bloqueados; no ocultar fallos, desactivar checks ni introducir atajos.
+- No reportar PASS sin evidencia de ejecución; identificar caché/evidencia reutilizada
+  y su vigencia. Distinguir PASS / FAIL / BLOCKED / NOT RUN.
+  Un fallo de entorno no demuestra por sí solo una regresión de producto.
+- Browser QA y aprobación visual humana son distintos. Cuando se requiera esta
+  aprobación, mantenerla como gate independiente de los checks técnicos.
+  `SAFE TO COMMIT` solo expresa validación, no aprobación visual ni permiso Git.
 
-- La UI Training Calendar conserva las filas densas DATE-only del backend; una
-  fecha ausente o duplicada es un error de contrato, nunca actividad cero inventada.
-  Las sesiones sin series siguen siendo actividad y las que cruzan medianoche
-  permanecen en su fecha local de inicio. Los totales mensuales y rachas requieren
-  un dominio futuro explícito, no sumas frontend de las métricas diarias.
+## Skills
 
-## Seguridad
+Usar el Skill cuyo trigger corresponda; no copiar sus procedimientos ni ampliar permisos:
 
-- Nunca introducir secretos en el repositorio.
-- Nunca loggear passwords, tokens o credenciales.
-- Nunca almacenar passwords en claro: Auth los hashea con Argon2id.
-- Los secretos JWT provienen del entorno, nunca del código fuente.
-- `passwordHash` es interno: nunca incluir su valor en representaciones públicas,
-  logs ni errores.
-- Documentar variables de entorno en `.env.example` sin valores secretos.
-- Los refresh tokens son opacos y se rotan; persistir únicamente el hash SHA-256
-  de su secret. Nunca incluir tokens, secrets ni hashes de sesión en JSON o logs.
-- Las cookies de autenticación son HttpOnly y requieren validación de Origin.
-  Nunca combinar CORS wildcard con credentials.
+- Implementar/rediseñar/pulir una fase UI solicitada:
+  [$keepgym-ui-phase](.agents/skills/keepgym-ui-phase/SKILL.md).
+- Verificar persistencia, snapshots, requests/mutations o cleanup de fixtures con
+  API/PostgreSQL/navegador reales:
+  [$keepgym-integration-smoke](.agents/skills/keepgym-integration-smoke/SKILL.md).
+- Verificación técnica o validación pre-commit solicitada:
+  [$keepgym-verify](.agents/skills/keepgym-verify/SKILL.md).
+- Auditoría/mejora explícita de AGENTS, Skills, references o harness:
+  [$keepgym-workspace-gardener](.agents/skills/keepgym-workspace-gardener/SKILL.md).
 
-## Comprobaciones obligatorias
+## Fuentes canónicas
 
-Antes de terminar cualquier ticket, ejecutar desde la raíz:
+Cargar solo las fuentes relevantes al encargo; sus secciones Evidence remiten al
+código/tests actuales. Los detalles de dominio son obligatorios en su ámbito:
 
-```sh
-pnpm lint
-pnpm typecheck
-pnpm test
-pnpm build
-```
+- Auth/Profile: [contrato](docs/contracts/auth-profile.md).
+- Template/Workout/History: [contrato](docs/contracts/workout-history.md).
+- Analytics/Dashboard/Progress/Calendar: [contrato](docs/contracts/training-analytics.md).
+- Body: [contrato](docs/contracts/body.md).
+- Estado operativo: [STATE](harness/STATE.md).
+- Aprendizajes revisados: [LEARNINGS](harness/LEARNINGS.md).
+- Cierres de fase, solo si hace falta su contexto: [formato](harness/phases/README.md).
 
-Si alguno falla, corregirlo antes de considerar terminado el ticket. No ocultar
-errores, desactivar comprobaciones ni introducir atajos para hacerlos pasar.
+El harness conserva contexto operativo; no sustituye contratos ni crea verdad de dominio.

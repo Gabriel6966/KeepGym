@@ -1308,14 +1308,9 @@ de detalle ni filtros temporales de History por día.
 
 ## Calidad y build
 
-Ejecuta desde la raíz antes de cerrar cualquier ticket:
-
-```sh
-pnpm lint
-pnpm typecheck
-pnpm test
-pnpm build
-```
+El procedimiento de verificación vigente está en
+[keepgym-verify](.agents/skills/keepgym-verify/SKILL.md).
+Los siguientes comandos están disponibles desde la raíz:
 
 - `lint`: ESLint en todas las aplicaciones y paquetes, seguido de la
   comprobación de formato con Prettier.
@@ -1329,7 +1324,7 @@ pnpm build
   También cubre Auth, Argon2id, JWT, DTOs y endpoints HTTP con persistencia en
   memoria y secretos aleatorios exclusivos de cada prueba; no necesita un JWT
   secret de desarrollo ni Docker.
-  El frontend estático y los paquetes sin lógica aún no tienen suites propias.
+  El frontend tiene suite propia en `apps/web/test`, incluida en `pnpm test`.
 - `build`: compila los paquetes compartidos, el backend en `apps/api/dist` y
   el frontend en `apps/web/.next`.
 
@@ -1351,6 +1346,6 @@ refresh y cierre de sesiones. No se han configurado Redis, shadcn/ui, TanStack Q
 Zustand ni servicios externos. Los modelos son User, Session, Profile, Exercise,
 WorkoutTemplate, WorkoutTemplateExercise, WorkoutSession, WorkoutSessionExercise
 y SetEntry, además de BodyMeasurement para observaciones corporales históricas.
-Hay plantillas privadas, snapshots históricos, registro de series y
+Hay plantillas privadas, snapshots históricos, registro de series, Dashboard,
 analytics y récords personales derivados de entrenamientos completados, sin
-dashboard ni eventos de récords personales.
+eventos de récords personales.
