@@ -5,7 +5,11 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { apiClient, ApiError } from '../../lib/api-client';
 import { AppHeader } from '../navigation/app-header';
-import { buttonClass, EmptyState } from '../dashboard/dashboard.ui';
+import {
+  buttonClass,
+  EmptyState,
+  primaryButtonClass,
+} from '../dashboard/dashboard.ui';
 import { WorkoutError, WorkoutLoading } from '../workout/workout.ui';
 import type { ResourcePage, WorkoutTemplate } from '../workout/workout.types';
 
@@ -18,25 +22,29 @@ export function TemplateListCards({ items }: { items: WorkoutTemplate[] }) {
       </Link>
     </EmptyState>
   ) : (
-    <ul className="grid gap-4 md:grid-cols-2">
+    <ul className="kg-enter grid gap-4 md:grid-cols-2">
       {items.map((template) => (
         <li
           key={template.id}
-          className="min-w-0 rounded-xl border border-slate-200 bg-white p-5 shadow-sm"
+          className="kg-card flex min-w-0 flex-col rounded-xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5"
         >
-          <span className="text-xs font-medium text-slate-500">
-            Active template
-          </span>
-          <h2 className="mt-2 text-lg font-semibold [overflow-wrap:anywhere]">
-            {template.name}
-          </h2>
+          <div className="flex flex-wrap items-start justify-between gap-x-3 gap-y-2">
+            <h2 className="min-w-0 flex-1 text-lg font-semibold [overflow-wrap:anywhere]">
+              {template.name}
+            </h2>
+            <span className="rounded-md bg-teal-50 px-2.5 py-1 text-xs font-medium text-teal-800">
+              Active template
+            </span>
+          </div>
           {template.description && (
             <p className="mt-2 whitespace-pre-wrap text-sm text-slate-600 [overflow-wrap:anywhere]">
               {template.description}
             </p>
           )}
-          <p className="mt-3 text-sm text-slate-500">
-            {template.exercises.length} exercises · Updated{' '}
+          <p className="mt-3 mb-4 text-sm text-slate-500">
+            {template.exercises.length}{' '}
+            {template.exercises.length === 1 ? 'exercise' : 'exercises'} ·
+            Updated{' '}
             <time dateTime={template.updatedAt}>
               {new Intl.DateTimeFormat(undefined, {
                 dateStyle: 'medium',
@@ -45,7 +53,7 @@ export function TemplateListCards({ items }: { items: WorkoutTemplate[] }) {
           </p>
           <Link
             href={'/templates/' + encodeURIComponent(template.id)}
-            className={buttonClass + ' mt-4'}
+            className={buttonClass + ' mt-auto self-start'}
             aria-label={'Open ' + template.name}
           >
             Open template
@@ -91,11 +99,10 @@ export function TemplatesList() {
           <div>
             <h1 className="text-3xl font-semibold tracking-tight">Templates</h1>
             <p className="mt-2 max-w-xl text-sm leading-6 text-slate-500">
-              Your active workout plans. Archived templates are not listed by
-              the current API.
+              Plan and reuse your workouts.
             </p>
           </div>
-          <Link href="/templates/new" className={buttonClass}>
+          <Link href="/templates/new" className={primaryButtonClass}>
             Create template
           </Link>
         </div>

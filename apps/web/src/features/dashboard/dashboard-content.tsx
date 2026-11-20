@@ -1,7 +1,14 @@
 import Link from 'next/link';
 import type { DashboardSummary, ExercisePerformance } from './dashboard.types';
 import { formatDate, formatDuration, formatKg, formatNumber } from './format';
-import { EmptyState, Metric, Section } from './dashboard.ui';
+import {
+  EmptyState,
+  Metric,
+  Section,
+  overviewDetailsClass,
+  overviewPanelClass,
+  overviewTotalsClass,
+} from './dashboard.ui';
 import { exerciseProgressUrl } from '../progress/progress-query';
 import {
   WeeklyComparisonVisualization,
@@ -78,53 +85,55 @@ export function DashboardContent({
       <section aria-labelledby="weekly-overview">
         <h2
           id="weekly-overview"
-          className="mb-4 text-lg font-semibold tracking-tight"
+          className="mb-3 text-lg font-semibold tracking-tight"
         >
           Weekly overview
         </h2>
-        <dl className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-          {[
-            ['Completed workouts', number(week.completedWorkouts)],
-            ['Completed sets', number(week.completedSets)],
-            ['Total reps', number(week.totalReps)],
-            ['External volume', kg(week.totalVolumeKg)],
-          ].map(([label, value]) => (
-            <div
-              key={label}
-              className="min-w-0 rounded-xl border border-slate-200 bg-white p-5 shadow-sm"
-            >
-              <dt className="text-xs font-medium text-slate-500">{label}</dt>
-              <dd className="mt-3 text-2xl font-semibold tracking-tight tabular-nums [overflow-wrap:anywhere]">
-                {value}
-              </dd>
-            </div>
-          ))}
-        </dl>
-        <dl className="mt-4 grid gap-4 sm:grid-cols-3">
-          {[
-            ['Active days', number(week.activeDays)],
-            ['Total duration', duration(week.totalDurationSeconds)],
-            ['Average duration', duration(week.averageDurationSeconds)],
-          ].map(([label, value]) => (
-            <div
-              key={label}
-              className="flex min-w-0 items-center justify-between gap-3 rounded-xl border border-slate-200 bg-white px-5 py-4"
-            >
-              <dt className="text-sm text-slate-500">{label}</dt>
-              <dd className="font-semibold tabular-nums">{value}</dd>
-            </div>
-          ))}
-        </dl>
+        <div className={'kg-enter ' + overviewPanelClass}>
+          <dl className={overviewTotalsClass}>
+            {[
+              ['Completed workouts', number(week.completedWorkouts)],
+              ['Completed sets', number(week.completedSets)],
+              ['Total reps', number(week.totalReps)],
+              ['External volume', kg(week.totalVolumeKg)],
+            ].map(([label, value]) => (
+              <div
+                key={label}
+                className="min-w-0 bg-white px-4 py-4 first:bg-teal-50 first:text-teal-900 lg:px-6"
+              >
+                <dt className="text-xs font-medium text-slate-600 sm:text-sm">
+                  {label}
+                </dt>
+                <dd className="mt-2 text-2xl font-semibold tracking-tight tabular-nums [overflow-wrap:anywhere] sm:text-3xl lg:text-4xl">
+                  {value}
+                </dd>
+              </div>
+            ))}
+          </dl>
+          <dl className={overviewDetailsClass}>
+            {[
+              ['Active days', number(week.activeDays)],
+              ['Total duration', duration(week.totalDurationSeconds)],
+              ['Average duration', duration(week.averageDurationSeconds)],
+            ].map(([label, value]) => (
+              <div
+                key={label}
+                className="flex min-w-0 flex-wrap items-baseline justify-between gap-x-3 gap-y-1 bg-white px-4 py-3 lg:px-6"
+              >
+                <dt className="text-sm text-slate-600">{label}</dt>
+                <dd className="min-w-0 text-sm font-semibold tabular-nums [overflow-wrap:anywhere]">
+                  {value}
+                </dd>
+              </div>
+            ))}
+          </dl>
+        </div>
       </section>
       <div className="grid items-start gap-6 lg:grid-cols-[1.35fr_1fr]">
         <Section
           id="weekly-comparison"
           title="Weekly comparison"
-          description={
-            'Against the week of ' +
-            comparison.previousWeekStart +
-            '. Changes are descriptive, not a rating.'
-          }
+          description={`Compared with the week of ${comparison.previousWeekStart}.`}
         >
           <WeeklyComparisonVisualization
             week={week}
@@ -184,7 +193,7 @@ export function DashboardContent({
             {summary.recentWorkouts.map((workout) => (
               <li
                 key={workout.id}
-                className="min-w-0 rounded-lg border border-slate-200 p-4"
+                className="kg-card min-w-0 rounded-lg border border-slate-200 p-4"
               >
                 <h3 className="font-semibold text-slate-800 [overflow-wrap:anywhere]">
                   <Link

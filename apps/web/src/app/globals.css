@@ -1,1 +1,136 @@
 @import 'tailwindcss';
+
+.kg-card:focus-within {
+  border-color: var(--color-teal-200);
+}
+
+@media (hover: hover) {
+  .kg-card:hover {
+    border-color: var(--color-slate-300);
+    box-shadow: 0 6px 18px -9px rgb(15 23 42 / 0.22);
+  }
+}
+
+.kg-shimmer {
+  background-color: var(--color-slate-200);
+}
+
+.kg-focus-glow:focus-within {
+  border-color: var(--color-teal-200);
+  box-shadow: 0 0 0 3px var(--color-teal-50);
+}
+
+.kg-header-blur {
+  background-color: white;
+}
+
+@supports (backdrop-filter: blur(12px)) {
+  .kg-header-blur {
+    background-color: rgb(255 255 255 / 0.92);
+    backdrop-filter: blur(12px) saturate(1.2);
+  }
+}
+
+@media (min-width: 64rem) {
+  html:has(.kg-header-blur) {
+    scroll-padding-block-start: 6.5rem;
+  }
+}
+
+.kg-nav-active {
+  position: relative;
+}
+
+.kg-nav-active[aria-current='page'] {
+  color: var(--color-teal-800);
+}
+
+.kg-nav-active[aria-current='page']::after {
+  position: absolute;
+  inset-inline: 0.5rem;
+  inset-block-end: 0.2rem;
+  height: 2px;
+  border-radius: 1px;
+  background-color: var(--color-teal-700);
+  content: '';
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .kg-enter {
+    animation: kg-fade-in-up 320ms cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  .kg-card {
+    transition:
+      translate 180ms ease,
+      box-shadow 180ms ease,
+      border-color 180ms ease;
+  }
+
+  @media (hover: hover) {
+    .kg-card:hover:not(:focus-within) {
+      translate: 0 -2px;
+    }
+  }
+
+  .kg-press {
+    transition:
+      transform 120ms ease,
+      background-color 120ms ease;
+  }
+
+  .kg-press:active:not(:disabled) {
+    transform: scale(0.98);
+  }
+
+  .kg-shimmer {
+    background-image: linear-gradient(
+      100deg,
+      transparent 35%,
+      var(--color-slate-100) 50%,
+      transparent 65%
+    );
+    background-size: 250% 100%;
+    animation: kg-shimmer 1.4s ease-in-out 3;
+  }
+
+  .kg-bar-fill {
+    animation: kg-bar-fill 450ms cubic-bezier(0.16, 1, 0.3, 1);
+    transform-origin: left;
+  }
+
+  .kg-focus-glow {
+    transition:
+      border-color 180ms ease,
+      box-shadow 180ms ease;
+  }
+}
+
+@keyframes kg-fade-in-up {
+  from {
+    opacity: 0.65;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes kg-shimmer {
+  from {
+    background-position: 100% 0;
+  }
+  to {
+    background-position: 0 0;
+  }
+}
+
+@keyframes kg-bar-fill {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(1);
+  }
+}
