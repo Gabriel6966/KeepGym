@@ -45,7 +45,7 @@ void test('template list empty/create CTA and cards use only real metadata and a
   for (const label of [
     'Push template',
     'Active template',
-    '1 exercises',
+    '1 exercise · Updated',
     'Open template',
     'Updated',
   ])

@@ -82,40 +82,45 @@ export function DashboardClient() {
       <AppHeader active="dashboard" />
       <main
         id="main-content"
-        className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8 lg:py-10"
+        className="mx-auto max-w-7xl px-4 py-6 sm:px-6 sm:py-8 lg:px-8 lg:py-10"
       >
-        <div className="mb-8 flex flex-col justify-between gap-5 lg:flex-row lg:items-end">
+        <div className="mb-6 grid gap-4 sm:mb-8 md:grid-cols-[1fr_auto] md:items-center">
           <div>
-            <p className="text-xs font-semibold uppercase tracking-widest text-teal-700">
-              Training overview
-            </p>
-            <h1 className="mt-2 text-3xl font-semibold tracking-tight sm:text-4xl">
+            <h1 className="text-4xl font-semibold tracking-tight sm:text-5xl">
               Dashboard
             </h1>
-            <p className="mt-2 text-sm text-slate-500">
-              Your training, described by the data.
+            <p className="mt-2 text-sm text-slate-600 sm:text-base">
+              Review your training week by week.
             </p>
           </div>
-          <div className="min-w-0">
-            <p className="text-xs font-medium text-slate-500">
-              Selected week{timezone ? ' · ' + timezone : ''}
-            </p>
-            <p className="mt-1 min-h-6 font-medium" aria-live="polite">
+          <div className="min-w-0 rounded-xl border border-slate-200 bg-white p-3 sm:p-4">
+            <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 text-xs text-slate-500">
+              <span className="font-medium text-slate-600">Selected week</span>
+              {timezone && (
+                <span className="[overflow-wrap:anywhere]">{timezone}</span>
+              )}
+            </div>
+            <p
+              className="mt-1 min-h-6 font-semibold tabular-nums"
+              aria-live="polite"
+            >
               {weekStart
                 ? formatWeekRange(weekStart, locale)
                 : 'Preparing your local week...'}
             </p>
             <div
-              className="mt-3 flex flex-wrap gap-2"
+              role="group"
+              className="mt-3 grid grid-cols-3 gap-1.5 sm:gap-2"
               aria-label="Week navigation"
             >
               <button
                 type="button"
                 className={buttonClass}
+                aria-label="Previous week"
                 disabled={!previous || !isDashboardWeek(previous)}
                 onClick={() => previous && navigate(previous)}
               >
-                Previous week
+                Previous
               </button>
               <button
                 type="button"
@@ -123,15 +128,16 @@ export function DashboardClient() {
                 disabled={!currentWeek}
                 onClick={() => currentWeek && navigate(currentWeek)}
               >
-                Current week
+                This week
               </button>
               <button
                 type="button"
                 className={buttonClass}
+                aria-label="Next week"
                 disabled={!next || !isDashboardWeek(next)}
                 onClick={() => next && navigate(next)}
               >
-                Next week
+                Next
               </button>
             </div>
           </div>

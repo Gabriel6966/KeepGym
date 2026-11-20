@@ -49,7 +49,7 @@ export function HistoryFilters({
       onSubmit={submit}
       noValidate
       aria-label="History filters"
-      className="mb-7 space-y-4 rounded-xl border border-slate-200 bg-white p-5"
+      className="kg-focus-glow mb-7 space-y-4 rounded-xl border border-slate-200 bg-white p-4 sm:p-5"
     >
       <div className="grid gap-4 sm:grid-cols-2">
         <div className="min-w-0">
