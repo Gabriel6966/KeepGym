@@ -75,6 +75,11 @@ Usar el Skill cuyo trigger corresponda; no copiar sus procedimientos ni ampliar 
   [$keepgym-integration-smoke](.agents/skills/keepgym-integration-smoke/SKILL.md).
 - Verificación técnica o validación pre-commit solicitada:
   [$keepgym-verify](.agents/skills/keepgym-verify/SKILL.md).
+- Publicar una rama mediante una orden explícita con
+  [$keepgym-release](.agents/skills/keepgym-release/SKILL.md). La autorización se
+  limita a esa rama y al alcance aprobado para la publicación. Las protecciones
+  de GitHub se aplican sin bypass. Las demás Skills deben respetar sus
+  prohibiciones Git.
 - Auditoría/mejora explícita de AGENTS, Skills, references o harness:
   [$keepgym-workspace-gardener](.agents/skills/keepgym-workspace-gardener/SKILL.md).
 
