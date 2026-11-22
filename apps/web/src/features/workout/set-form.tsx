@@ -1,7 +1,7 @@
 'use client';
 
 import { useId, useRef, useState, type FormEvent } from 'react';
-import { buttonClass } from '../dashboard/dashboard.ui';
+import { buttonClass, primaryButtonClass } from '../dashboard/dashboard.ui';
 import type { SetEntry, SetEntryInput } from './workout.types';
 import {
   setDraft,
@@ -37,6 +37,11 @@ const fields: {
     decimal: false,
   },
 ];
+
+function focusLoadField(field: HTMLInputElement | null) {
+  field?.focus();
+}
+
 export function SetForm({
   set,
   disabled,
@@ -96,6 +101,7 @@ export function SetForm({
                 {field.label}
               </label>
               <input
+                ref={set && field.key === 'loadKg' ? focusLoadField : undefined}
                 id={id}
                 name={field.key}
                 type="text"
@@ -142,7 +148,7 @@ export function SetForm({
         <button
           type="submit"
           disabled={disabled || pending}
-          className={buttonClass}
+          className={primaryButtonClass}
         >
           {pending ? 'Saving...' : set ? 'Save set' : 'Add set'}
         </button>

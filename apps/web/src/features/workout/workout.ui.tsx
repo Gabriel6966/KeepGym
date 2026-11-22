@@ -13,7 +13,7 @@ export function WorkoutLoading({
         <div
           key={item}
           aria-hidden="true"
-          className="h-52 animate-pulse rounded-xl bg-slate-200 motion-reduce:animate-none"
+          className="kg-shimmer h-52 rounded-xl"
         />
       ))}
     </div>
@@ -44,4 +44,4 @@ export function WorkoutError({
   );
 }
 export const inputClass =
-  'mt-2 block min-h-12 w-full min-w-0 rounded-lg border border-slate-300 bg-white px-3 py-3 text-base tabular-nums outline-offset-2 focus-visible:outline-2 focus-visible:outline-teal-700 disabled:bg-slate-100';
+  'mt-2 block min-h-12 w-full min-w-0 rounded-lg border border-slate-300 bg-white px-3 py-3 text-base tabular-nums outline-offset-2 focus:border-teal-700 focus-visible:outline-2 focus-visible:outline-teal-700 disabled:bg-slate-100 aria-invalid:border-red-700 motion-safe:transition-colors';

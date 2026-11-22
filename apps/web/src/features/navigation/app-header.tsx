@@ -34,12 +34,12 @@ export function AppHeader({
     }
   }
   return (
-    <header className="border-b border-slate-200 bg-white">
-      <div className="mx-auto flex max-w-7xl items-center justify-between gap-3 px-4 py-4 sm:px-6 lg:px-8">
+    <header className="kg-header-blur border-b border-slate-200 lg:sticky lg:top-0 lg:z-30">
+      <div className="mx-auto grid max-w-7xl gap-2 px-4 py-2 sm:px-6 md:flex md:items-center md:justify-between md:gap-3 md:py-3 lg:px-8">
         <Link
           href="/"
           aria-label="Gym App home"
-          className="flex shrink-0 items-center gap-3 rounded-lg focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-teal-700"
+          className="flex min-h-11 w-fit shrink-0 items-center gap-2 rounded-lg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-700"
         >
           <span
             aria-hidden="true"
@@ -47,13 +47,11 @@ export function AppHeader({
           >
             G
           </span>
-          <span className="hidden font-semibold tracking-tight sm:inline">
-            Gym App
-          </span>
+          <span className="font-semibold tracking-tight">Gym App</span>
         </Link>
         <nav
           aria-label="Main navigation"
-          className="flex flex-wrap items-center justify-end gap-1 sm:gap-3"
+          className="flex flex-wrap items-center gap-x-1 gap-y-1 md:justify-end lg:gap-x-2"
         >
           {(
             [
@@ -70,7 +68,7 @@ export function AppHeader({
               key={item}
               href={'/' + item}
               aria-current={active === item ? 'page' : undefined}
-              className="rounded-md px-2 py-3 text-sm font-medium text-slate-800 focus-visible:outline-2 focus-visible:outline-teal-700"
+              className="kg-nav-active inline-flex min-h-11 items-center rounded-md px-2 py-2 text-sm font-medium text-slate-800 hover:bg-slate-50 hover:text-teal-800 focus-visible:outline-2 focus-visible:outline-teal-700 motion-safe:transition-colors"
             >
               {item === 'dashboard'
                 ? 'Dashboard'

@@ -48,22 +48,25 @@ export function HistoryCards({
       )}
     </EmptyState>
   ) : (
-    <ul className="grid gap-4 md:grid-cols-2">
+    <ul className="kg-enter grid gap-4 md:grid-cols-2">
       {items.map((workout) => (
         <li
           key={workout.id}
           data-history-workout-id={workout.id}
-          className="min-w-0 rounded-xl border border-slate-200 bg-white p-5 shadow-sm"
+          className="kg-card flex min-w-0 flex-col gap-4 rounded-xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5"
         >
           <div className="flex flex-wrap items-start justify-between gap-3">
             <h2 className="min-w-0 flex-1 text-lg font-semibold [overflow-wrap:anywhere]">
               {workout.name}
             </h2>
-            <span className="rounded-md bg-slate-100 px-3 py-2 text-xs font-semibold">
+            <span
+              data-status={workout.status}
+              className="rounded-md bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-700 data-[status=COMPLETED]:bg-teal-50 data-[status=COMPLETED]:text-teal-800"
+            >
               {workout.status === 'COMPLETED' ? 'Completed' : 'Cancelled'}
             </span>
           </div>
-          <dl className="mt-4 grid grid-cols-2 gap-4">
+          <dl className="grid grid-cols-2 gap-4">
             <Metric
               label="Started"
               value={<HistoryTime value={workout.startedAt} />}
@@ -84,7 +87,7 @@ export function HistoryCards({
           <Link
             href={'/history/' + encodeURIComponent(workout.id)}
             aria-label={'View history of ' + workout.name}
-            className={buttonClass + ' mt-5'}
+            className={buttonClass + ' mt-auto self-start'}
           >
             View workout
           </Link>
@@ -198,7 +201,7 @@ export function HistoryDetailContent({
         {workout.exercises.length === 0 ? (
           <EmptyState>No exercises recorded.</EmptyState>
         ) : (
-          <ol className="space-y-5">
+          <ol className="kg-enter space-y-5">
             {workout.exercises.map((entry) => (
               <HistoricalExercise key={entry.id} entry={entry} />
             ))}

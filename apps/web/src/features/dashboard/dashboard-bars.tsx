@@ -11,11 +11,12 @@ export function DecorativeBar({
     <div
       aria-hidden="true"
       data-visual-bar
-      className="h-3 w-full overflow-hidden rounded-full bg-slate-100"
+      className="h-2 w-full overflow-hidden rounded-full bg-slate-100"
     >
       <div
         className={
-          'h-full rounded-full ' + (muted ? 'bg-slate-400' : 'bg-slate-800')
+          'kg-bar-fill h-full rounded-full ' +
+          (muted ? 'bg-slate-400' : 'bg-teal-700')
         }
         style={{ width: `${width}%` }}
       />

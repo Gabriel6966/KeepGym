@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import { buttonClass, Metric } from '../dashboard/dashboard.ui';
 import { formatKg, formatNumber } from '../dashboard/format';
 import type { SessionExercise, SetEntry, SetEntryInput } from './workout.types';
@@ -23,6 +23,17 @@ function SetRow({
   const [editing, setEditing] = useState(false),
     [error, setError] = useState<string | null>(null),
     [deleting, setDeleting] = useState(false);
+  const shouldRestoreFocus = useRef(false);
+  const restoreEditFocus = useCallback((button: HTMLButtonElement | null) => {
+    if (button && shouldRestoreFocus.current) {
+      shouldRestoreFocus.current = false;
+      button.focus();
+    }
+  }, []);
+  function closeEditor() {
+    shouldRestoreFocus.current = true;
+    setEditing(false);
+  }
   async function remove() {
     if (
       busy ||
@@ -52,10 +63,10 @@ function SetRow({
           disabled={busy}
           onSave={async (input) => {
             const saved = await onSave(input);
-            if (saved) setEditing(false);
+            if (saved) closeEditor();
             return saved;
           }}
-          onCancel={() => setEditing(false)}
+          onCancel={closeEditor}
         />
       ) : (
         <>
@@ -64,6 +75,7 @@ function SetRow({
             {editable && (
               <div className="flex gap-2">
                 <button
+                  ref={restoreEditFocus}
                   type="button"
                   disabled={busy}
                   onClick={() => {
@@ -123,7 +135,7 @@ export function ExerciseBlock({
     <section
       aria-labelledby={headingId}
       data-exercise-id={exercise.id}
-      className="min-w-0 rounded-xl border border-slate-200 bg-white p-4 shadow-sm sm:p-6"
+      className="kg-focus-glow min-w-0 rounded-xl border border-slate-200 bg-white p-4 shadow-sm sm:p-6"
     >
       <h3
         id={headingId}
